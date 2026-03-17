@@ -7,7 +7,31 @@ from django.db import models
 #from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
 import uuid
+
+class Department(models.Model):
+    name = models.CharField(max_length=100)
+    
+    def __str__(self):
+        return self.name
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    department = models.ForeignKey(Department, on_delete=models.PROTECT)
+
+    def __str__(self):
+        return self.user.username
+    
+class Group(models.Model):
+    """Group of students (lab group, practical group, etc.)"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=50)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
 
 class Student(models.Model):
     """Individual student information"""
@@ -18,8 +42,23 @@ class Student(models.Model):
     matriculation_number = models.CharField(max_length=20, unique=True, blank=True, null=True)
     course = models.CharField(max_length=100, blank=True)
     semester = models.IntegerField(blank=True, null=True)
-    
-    # Metadata
+
+    group = models.ForeignKey(
+        Group,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="students"
+    )
+
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="students"
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -27,7 +66,7 @@ class Student(models.Model):
         ordering = ['last_name', 'first_name']
         
     def __str__(self):
-        return f"{self.last_name}, {self.first_name} ({self.email})"
+        return f"{self.last_name}, {self.first_name} ({self.matriculation_number})"
     
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
@@ -99,7 +138,8 @@ class AttendanceRecord(models.Model):
         unique_together = ['student', 'praktikum_day']  # One record per student per day
         
     def __str__(self):
-        status = "Present" if self.is_present else "Absent"
+        status = "1" if self.is_present else "0"
+        
         return f"{self.student.full_name()} - Day {self.praktikum_day}: {status}"
 
 
@@ -119,24 +159,52 @@ class PaperSubmission(models.Model):
         ordering = ['paper__experiment__order', 'paper__order']
         
     def __str__(self):
-        status = "✓" if self.submitted else "✗"
+        status = "1" if self.submitted else "0"
         return f"{self.student.full_name()} - {self.paper}: {status}"
 
 
 class ExerciseCompletion(models.Model):
     """Track which exercises students have completed"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='exercise_completions')
-    exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE, related_name='completions')
+
+    student = models.ForeignKey(
+        Student,
+        on_delete=models.CASCADE,
+        related_name='exercise_completions'
+    )
+
+    partner = models.ForeignKey(
+        Student,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='exercise_partnerships'
+    )
+
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name='completions'
+    )
+
     completed = models.BooleanField(default=False)
     completion_date = models.DateTimeField(blank=True, null=True)
-    
+
     class Meta:
         unique_together = ['student', 'exercise']  # One completion record per student per exercise
-        
+
     def __str__(self):
-        status = "✓" if self.completed else "✗"
-        return f"{self.student.full_name()} - {self.exercise}: {status}"
+        status = "1" if self.completed else "0"
+        partner_name = self.partner.full_name() if self.partner else "None"
+        return f"{self.student.full_name()} - {self.exercise} ({partner_name}): {status}"
+    
+    def clean(self):
+        if self.partner and self.student == self.partner:
+            raise ValidationError("Student cannot be their own partner.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class FinalResult(models.Model):
