@@ -1,0 +1,30 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: attendance_db
+      POSTGRES_USER: attendance_user
+      POSTGRES_PASSWORD: test123
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance_user -d attendance_db"]
+      interval: 10s
+      timeout: 8s
+      retries: 20
+
+  web:
+    build:
+      context: .
+      dockerfile: ./docker/local/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings
+      DATABASE_URL: postgres://attendance_user:test123@db:5432/attendance_db
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    command: bash -lc "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
