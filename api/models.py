@@ -128,10 +128,7 @@ class AttendanceRecord(models.Model):
     date = models.DateField()
     praktikum_day = models.IntegerField(help_text="Day number of the praktikum (1, 2, 3, ...)")
     is_present = models.BooleanField(default=False)
-    
-    # Optional: time tracking
-    check_in_time = models.DateTimeField(blank=True, null=True)
-    check_out_time = models.DateTimeField(blank=True, null=True)
+    comment = models.TextField(blank=True, null=True)
     
     class Meta:
         ordering = ['-date']
