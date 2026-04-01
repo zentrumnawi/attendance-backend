@@ -1,5 +1,6 @@
 from django.contrib import admin
-
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
 # Register your models here.
 from .models import Department
 from .models import Student, Experiment, Paper, Exercise, AttendanceRecord, PaperSubmission, ExerciseCompletion, FinalResult, Group, UserProfile, Department
@@ -11,6 +12,18 @@ from .models import Student, Experiment, Paper, Exercise, AttendanceRecord, Pape
 #     list_filter = ['course']
 #     search_fields = ['first_name', 'last_name', 'email', 'matriculation_number']
 #     list_per_page = 25
+
+class UserProfileInline(admin.StackedInline):
+    model = UserProfile
+    can_delete = False
+    verbose_name_plural = 'User Profile'
+
+class CustomUserAdmin(UserAdmin):
+    inlines = (UserProfileInline,)
+
+# Unregister the original User model and register the custom one
+admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
 
 
 @admin.register(Student)
@@ -44,12 +57,12 @@ class StudentAdmin(admin.ModelAdmin):
         qs = super().get_queryset(request)
         if request.user.is_superuser:
             return qs
-        return qs.filter(department=request.user.userprofile.department)
+        return qs.filter(group=request.user.userprofile.group)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "group" and not request.user.is_superuser:
             kwargs["queryset"] = Group.objects.filter(
-                students__department=request.user.userprofile.department
+                students__group=request.user.userprofile.group
             )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 

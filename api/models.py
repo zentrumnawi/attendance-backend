@@ -16,12 +16,6 @@ class Department(models.Model):
     def __str__(self):
         return self.name
 
-class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    department = models.ForeignKey(Department, on_delete=models.PROTECT)
-
-    def __str__(self):
-        return self.user.username
     
 class Group(models.Model):
     """Group of students (lab group, practical group, etc.)"""
@@ -32,6 +26,15 @@ class Group(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, on_delete=models.PROTECT)
+
+    def __str__(self):
+        return self.user.username
+
 
 class Student(models.Model):
     """Individual student information"""
