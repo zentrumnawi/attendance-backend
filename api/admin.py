@@ -79,27 +79,23 @@ class StudentAdmin(admin.ModelAdmin):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-# Experiment Admin
 @admin.register(Experiment)
 class ExperimentAdmin(admin.ModelAdmin):
     list_display = ["order", "title", "requires_paper_submission"]
     list_editable = ["requires_paper_submission"]
 
 
-# Paper Admin
 @admin.register(Paper)
 class PaperAdmin(admin.ModelAdmin):
     list_display = ["experiment", "order", "title"]
     list_filter = ["experiment"]
 
 
-# Exercise Admin
 @admin.register(Exercise)
 class ExerciseAdmin(admin.ModelAdmin):
     list_display = ["order", "title"]
 
 
-# Attendance Record Admin
 @admin.register(AttendanceRecord)
 class AttendanceRecordAdmin(admin.ModelAdmin):
     list_display = ["student", "praktikum_day", "date", "is_present"]
@@ -107,23 +103,29 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
     search_fields = ["student__first_name", "student__last_name"]
     date_hierarchy = "date"
 
+    def get_queryset(self, request):
+        return self.model.objects.for_user(request.user)
 
-# Paper Submission Admin
+
 @admin.register(PaperSubmission)
 class PaperSubmissionAdmin(admin.ModelAdmin):
     list_display = ["student", "paper", "submitted", "submission_date"]
     list_filter = ["submitted", "paper__experiment"]
     search_fields = ["student__first_name", "student__last_name"]
 
+    def get_queryset(self, request):
+        return self.model.objects.for_user(request.user)
 
-# Exercise Completion Admin
+
 @admin.register(ExerciseCompletion)
 class ExerciseCompletionAdmin(admin.ModelAdmin):
     list_display = ["student", "partner", "exercise", "completed", "completion_date"]
     list_filter = ["completed", "exercise"]
 
+    def get_queryset(self, request):
+        return self.model.objects.for_user(request.user)
 
-# Final Result Admin
+
 @admin.register(FinalResult)
 class FinalResultAdmin(admin.ModelAdmin):
     list_display = [
@@ -135,6 +137,9 @@ class FinalResultAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status"]
     search_fields = ["student__first_name", "student__last_name"]
+
+    def get_queryset(self, request):
+        return self.model.objects.for_user(request.user)
 
 
 @admin.register(Group)

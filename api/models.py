@@ -30,6 +30,17 @@ class Group(models.Model):
         return self.name
 
 
+class GroupRestrictedManager(models.Manager):
+    def for_user(self, user):
+        if user.is_superuser:
+            return self.get_queryset()
+        try:
+            user_group = user.userprofile.group
+            return self.get_queryset().filter(student__group=user_group)
+        except UserProfile.DoesNotExist:
+            return self.none()
+
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.PROTECT)
@@ -40,6 +51,8 @@ class UserProfile(models.Model):
 
 class Student(models.Model):
     """Individual student information"""
+
+    objects = GroupRestrictedManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     first_name = models.CharField(max_length=100)
@@ -133,6 +146,8 @@ class Exercise(models.Model):
 class AttendanceRecord(models.Model):
     """Track attendance for each student on each praktikum day"""
 
+    objects = GroupRestrictedManager()
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(
         Student, on_delete=models.CASCADE, related_name="attendance_records"
@@ -156,6 +171,8 @@ class AttendanceRecord(models.Model):
 
 class PaperSubmission(models.Model):
     """Track which papers students have submitted"""
+
+    objects = GroupRestrictedManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(
@@ -184,6 +201,8 @@ class PaperSubmission(models.Model):
 
 class ExerciseCompletion(models.Model):
     """Track which exercises students have completed"""
+
+    objects = GroupRestrictedManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
@@ -230,6 +249,8 @@ class ExerciseCompletion(models.Model):
 
 class FinalResult(models.Model):
     """Final pass/fail status for each student"""
+
+    objects = GroupRestrictedManager()
 
     class Status(models.TextChoices):
         PASS = "PASS", "Pass"
