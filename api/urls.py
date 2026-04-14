@@ -20,7 +20,7 @@ urlpatterns = [
         name="paper-submission-list",
     ),
     path(
-        "paper-submissions/<uuid:pk>/",
+        "paper-submissions/<uuid:student_pk>/<uuid:paper_id>/",
         views.PaperSubmissionDetail.as_view(),
         name="paper-submission-detail",
     ),
@@ -30,7 +30,7 @@ urlpatterns = [
         name="exercise-completion-list",
     ),
     path(
-        "exercise-completions/<uuid:pk>/",
+        "exercise-completions/<uuid:student_pk>/<uuid:exercise_id>/",
         views.ExerciseCompletionDetail.as_view(),
         name="exercise-completion-detail",
     ),

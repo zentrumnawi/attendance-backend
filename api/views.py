@@ -100,12 +100,37 @@ class PaperSubmissionList(generics.ListCreateAPIView):
     serializer_class = PaperSubmissionSerializer
 
     def get_queryset(self):
-        return PaperSubmission.objects.for_user(self.request.user)
+        paper_id = self.request.query_params.get("paper_id")
+        if paper_id:
+            try:
+                return PaperSubmission.objects.for_user(self.request.user).filter(
+                    paper__pk=paper_id
+                )
+            except Paper.DoesNotExist:
+                raise Http404("Paper not found")
+        else:
+            return PaperSubmission.objects.for_user(self.request.user)
 
 
 class PaperSubmissionDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = PaperSubmission.objects.all()
     serializer_class = PaperSubmissionSerializer
+    queryset = PaperSubmission.objects.all()
+
+    def get_object(self):
+        student_pk = self.kwargs.get("student_pk")
+        paper_id = self.kwargs.get("paper_id")
+
+        base_queryset = PaperSubmission.objects.for_user(self.request.user)
+
+        if student_pk and paper_id is not None:
+            obj = get_object_or_404(
+                base_queryset, student__pk=student_pk, paper__pk=paper_id
+            )
+
+        else:
+            raise Http404("Please provide 'student_pk' and 'paper_id'.")
+
+        return obj
 
 
 class ExerciseCompletionList(generics.ListCreateAPIView):
@@ -113,12 +138,36 @@ class ExerciseCompletionList(generics.ListCreateAPIView):
     serializer_class = ExerciseCompletionSerializer
 
     def get_queryset(self):
-        return ExerciseCompletion.objects.for_user(self.request.user)
+        exercise_id = self.request.query_params.get("exercise_id")
+        if exercise_id:
+            try:
+                return ExerciseCompletion.objects.for_user(self.request.user).filter(
+                    exercise__pk=exercise_id
+                )
+            except Exercise.DoesNotExist:
+                raise Http404("Exercise not found")
+        else:
+            return ExerciseCompletion.objects.for_user(self.request.user)
 
 
 class ExerciseCompletionDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = ExerciseCompletion.objects.all()
     serializer_class = ExerciseCompletionSerializer
+
+    def get_object(self):
+        student_pk = self.kwargs.get("student_pk")
+        exercise_id = self.kwargs.get("exercise_id")
+
+        base_queryset = ExerciseCompletion.objects.for_user(self.request.user)
+
+        if student_pk and exercise_id is not None:
+            obj = get_object_or_404(
+                base_queryset, student__pk=student_pk, exercise__pk=exercise_id
+            )
+
+        else:
+            raise Http404("Please provide 'student_pk' and 'exercise_id'.")
+
+        return obj
 
 
 class FinalResultList(generics.ListCreateAPIView):
