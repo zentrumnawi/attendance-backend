@@ -36,7 +36,7 @@ urlpatterns = [
     ),
     path("final-results/", views.FinalResultList.as_view(), name="final-result-list"),
     path(
-        "final-results/<uuid:pk>/",
+        "final-results/<uuid:student_pk>/",
         views.FinalResultDetail.as_view(),
         name="final-result-detail",
     ),

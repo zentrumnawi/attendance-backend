@@ -179,5 +179,17 @@ class FinalResultList(generics.ListCreateAPIView):
 
 
 class FinalResultDetail(generics.RetrieveUpdateDestroyAPIView):
-    queryset = FinalResult.objects.all()
     serializer_class = FinalResultSerializer
+
+    def get_object(self):
+        student_pk = self.kwargs.get("student_pk")
+
+        base_queryset = FinalResult.objects.for_user(self.request.user)
+
+        if student_pk is not None:
+            obj = get_object_or_404(base_queryset, student__pk=student_pk)
+
+        else:
+            raise Http404("Please provide 'student_pk'.")
+
+        return obj
