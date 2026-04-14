@@ -50,6 +50,17 @@ class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
 
+    def get_object(self):
+        if self.request.user.is_superuser:
+            return get_object_or_404(Student, pk=self.kwargs.get("pk"))
+        try:
+            user_group = self.request.user.userprofile.group
+            return get_object_or_404(
+                Student, pk=self.kwargs.get("pk"), group=user_group
+            )
+        except UserProfile.DoesNotExist:
+            raise Http404("Student not found")
+
 
 # Get attendance records (according to permissions): in toto , by day or by student
 class AttendanceRecordList(generics.ListCreateAPIView):
