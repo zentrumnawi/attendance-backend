@@ -137,6 +137,7 @@ class FinalResultAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status"]
     search_fields = ["student__first_name", "student__last_name"]
+    readonly_fields = ["papers_completed", "exercises_completed", "attendance_count"]
 
     def get_queryset(self, request):
         return self.model.objects.for_user(request.user)
