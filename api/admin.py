@@ -43,11 +43,6 @@ class CustomUserAdmin(UserAdmin):
     inlines = (UserProfileInline,)
 
 
-# Unregister the original User model and register the custom one
-admin.site.unregister(User)
-admin.site.register(User, CustomUserAdmin)
-
-
 class StudentAdmin(admin.ModelAdmin):
     list_display = [
         "last_name",
@@ -213,3 +208,4 @@ admin_site.register(ExerciseCompletion, ExerciseCompletionAdmin)
 admin_site.register(FinalResult, FinalResultAdmin)
 admin_site.register(Group, GroupAdmin)
 admin_site.register(Department, DepartmentAdmin)
+admin_site.register(User, CustomUserAdmin)
