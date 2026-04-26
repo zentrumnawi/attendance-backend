@@ -40,4 +40,9 @@ urlpatterns = [
         views.FinalResultDetail.as_view(),
         name="final-result-detail",
     ),
+    path(
+        "students/upload-csv/",
+        views.StudentCSVUploadView.as_view(),
+        name="student-upload-csv",
+    ),
 ]
