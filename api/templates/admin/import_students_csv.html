@@ -79,11 +79,9 @@
     <div class="info-box">
         <strong>CSV Format:</strong> Your file must have these columns:
         <ul>
-            <li><code>first_name</code></li>
-            <li><code>last_name</code></li>
-            <li><code>email</code></li>
-            <li><code>matriculation_number</code></li>
-            <li><code>group</code> (Group name - case insensitive)</li>
+            {% for column in required_fields %}
+            <li><code>{{column}}</code></li>
+            {% endfor %}
         </ul>
         <p><strong>Note:</strong> All rows must be valid. If any row has an error, the entire import will be rejected.</p>
     </div>

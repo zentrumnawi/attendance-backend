@@ -6,6 +6,7 @@ from django.shortcuts import render, redirect
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
 from django.urls import reverse
+from .utils.csv_import import CSVRowValidator
 
 # Register your models here.
 from .models import Department
@@ -199,6 +200,7 @@ def import_students_csv_view(request):
         {
             "title": "Import Students from CSV",
             "opts": Student._meta,
+            "required_fields": list(CSVRowValidator.REQUIRED_FIELDS),
         },
     )
 
