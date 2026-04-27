@@ -1,0 +1,11 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+    
+    {{ block.super }}
+    <div style="margin: 20px 0; background: #f8f9fa; border-radius: 4px;">
+        <h3 style="color: #417690;">Data Management</h3>
+        <p><a href="{{ csv_import_url }}" class="button">Import Students from CSV</a></p>
+    </div>
+    
+{% endblock %}

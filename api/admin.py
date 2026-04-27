@@ -148,6 +148,12 @@ class CustomAdminSite(admin.AdminSite):
     site_header = "Attendance Administration"
     site_title = "Attendance Admin"
     index_title = "Welcome"
+    index_template = "admin/custom_index.html"
+
+    def index(self, request, extra_context=None):
+        extra_context = extra_context or {}
+        extra_context["csv_import_url"] = reverse("admin:import_students_csv")
+        return super().index(request, extra_context=extra_context)
 
     def get_urls(self):
         urls = super().get_urls()
