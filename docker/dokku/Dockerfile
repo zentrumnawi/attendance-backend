@@ -1,8 +1,9 @@
 FROM python:3.12-slim
 ARG DJANGO_SETTINGS_MODULE
+ARG DJANGO_ADMIN_URL
 ARG DJANGO_SECRET_KEY
 ARG DATABASE_URL
-ENV PYTHONUNBUFFERED=1 DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY} DATABASE_URL=${DATABASE_URL} POETRY_VIRTUALENVS_CREATE=false
+ENV PYTHONUNBUFFERED=1 DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE} DJANGO_ADMIN_URL=${DJANGO_ADMIN_URL} DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY} DATABASE_URL=${DATABASE_URL} POETRY_VIRTUALENVS_CREATE=false
 
 # Add new user to run the whole thing as non-root
 RUN groupadd app
@@ -22,7 +23,7 @@ RUN cp /usr/share/zoneinfo/Europe/Berlin /etc/localtime \
     && echo "Europe/Berlin" > /etc/timezone
 
 # Copy Pipfile and install python dependencies
-RUN curl -sSL https://install.python-poetry.org | python - \
+RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.3 python - \
   && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
 COPY --chown=app:app pyproject.toml poetry.lock /
 
