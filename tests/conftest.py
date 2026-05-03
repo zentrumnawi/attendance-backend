@@ -2,6 +2,7 @@ import pytest
 from api.models import Student, Group, UserProfile
 from django.contrib.auth.models import User
 
+
 @pytest.fixture(autouse=True)
 def student1(db, group1):
     return Student.objects.create(
@@ -13,6 +14,7 @@ def student1(db, group1):
         semester=1,
         group=group1,
     )
+
 
 @pytest.fixture(autouse=True)
 def student2(db, group2):
@@ -26,6 +28,7 @@ def student2(db, group2):
         group=group2,
     )
 
+
 @pytest.fixture(autouse=True)
 def group1(db):
     return Group.objects.create(
@@ -33,12 +36,14 @@ def group1(db):
         description="Group 1 description",
     )
 
+
 @pytest.fixture(autouse=True)
 def group2(db):
     return Group.objects.create(
         name="B",
         description="Group 2 description",
     )
+
 
 @pytest.fixture(autouse=True)
 def user1(db, group1):
@@ -50,6 +55,7 @@ def user1(db, group1):
     UserProfile.objects.create(user=user, group=group1)
     return user
 
+
 @pytest.fixture(autouse=True)
 def superuser(db):
     user = User.objects.create_superuser(
@@ -59,10 +65,12 @@ def superuser(db):
     )
     return user
 
+
 @pytest.fixture
 def logged_in_client_superuser(client, superuser):
     client.force_login(superuser)
     return client
+
 
 @pytest.fixture
 def logged_in_client1(client, user1):
