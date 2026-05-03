@@ -1,0 +1,42 @@
+on:
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      POETRY_VERSION: 2.3.2
+      POETRY_VIRTUALENVS_CREATE: false
+
+    steps:
+    - uses: actions/checkout@v5
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.12
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | POETRY_VERSION=${{ env.POETRY_VERSION }} python3 -
+        poetry --version
+
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cache/pypoetry
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        poetry install --no-interaction --no-ansi
+
+    - name: Run tests
+      run: |  
+        ruff format --check
+        poetry run pytest
