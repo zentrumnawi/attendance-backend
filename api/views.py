@@ -1,6 +1,8 @@
-from rest_framework import generics
+from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from .models import (
@@ -30,6 +32,8 @@ from .serializers import (
     ExerciseSerializer,
     UserProfileSerializer,
 )
+
+from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
 
 
 class StudentList(generics.ListCreateAPIView):
@@ -204,3 +208,42 @@ class FinalResultDetail(generics.RetrieveUpdateDestroyAPIView):
             raise Http404("Please provide 'student_pk'.")
 
         return obj
+
+
+class StudentCSVUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        if "file" not in request.FILES:
+            return Response(
+                {"detail": "No file provided. Please upload a CSV file."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        csv_file = request.FILES["file"]
+
+        if not csv_file.name.lower().endswith(".csv"):
+            return Response(
+                {"detail": "File must be a CSV file (.csv)"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            valid_students = validate_and_parse_csv_file(csv_file)
+        except ValueError as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        uploaded_count = bulk_import_students(valid_students)
+
+        response_data = {
+            "status": "completed",
+            "summary": {
+                "total_processed": uploaded_count,
+                "successful": uploaded_count,
+            },
+        }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)

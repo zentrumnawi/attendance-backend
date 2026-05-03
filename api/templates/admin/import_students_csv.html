@@ -1,0 +1,146 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Import Students from CSV{% endblock %}
+
+{% block extrastyle %}
+<style>
+    .import-form {
+        max-width: 600px;
+        margin: 20px auto;
+    }
+    .form-group {
+        margin: 20px 0;
+    }
+    label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: bold;
+    }
+    .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        background: #f9f9f9;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .upload-area:hover {
+        border-color: #999;
+        background: #f0f0f0;
+    }
+    .upload-area.dragover {
+        border-color: #417690;
+        background: #e8f4f8;
+    }
+    input[type="file"] {
+        display: none;
+    }
+    .button-group {
+        margin-top: 20px;
+    }
+    .submit-btn {
+        background: #417690;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    .submit-btn:hover {
+        background: #2e5266;
+    }
+    .info-box {
+        background: #f0f8ff;
+        border-left: 4px solid #417690;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+    }
+    .back-link {
+        margin-top: 20px;
+    }
+    .back-link a {
+        color: #417690;
+        text-decoration: none;
+    }
+    .back-link a:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="import-form">
+    <h1>Import Students from CSV</h1>
+
+    <div class="info-box">
+        <strong>CSV Format:</strong> Your file must have these columns:
+        <ul>
+            {% for column in required_fields %}
+            <li><code>{{column}}</code></li>
+            {% endfor %}
+        </ul>
+        <p><strong>Note:</strong> All rows must be valid. If any row has an error, the entire import will be rejected.</p>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-group">
+            <label for="fileInput">Select CSV File:</label>
+            <div class="upload-area" id="uploadArea">
+                <p><strong>Drag and drop your CSV file here</strong></p>
+                <p>or click to select file</p>
+                <input type="file" id="fileInput" name="file" accept=".csv" required>
+            </div>
+            <div id="fileName" style="margin-top: 10px; color: #666;"></div>
+        </div>
+
+        <div class="button-group">
+            <button type="submit" class="submit-btn">Upload CSV</button>
+            <a href="{% url 'admin:api_student_changelist' %}" class="submit-btn" style="background: #999; text-decoration: none; display: inline-block;">Cancel</a>
+        </div>
+    </form>
+
+    <div class="back-link">
+        <a href="{% url 'admin:api_student_changelist' %}">Go to Students List</a>
+    </div>
+</div>
+
+<script>
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInput = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+
+    uploadArea.addEventListener('click', () => fileInput.click());
+
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        fileInput.files = e.dataTransfer.files;
+        updateFileName();
+    });
+
+    fileInput.addEventListener('change', updateFileName);
+
+    function updateFileName() {
+        if (fileInput.files.length > 0) {
+            fileName.textContent = 'Selected: ' + fileInput.files[0].name;
+        } else {
+            fileName.textContent = '';
+        }
+    }
+</script>
+{% endblock %}
