@@ -21,7 +21,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings
+      DJANGO_SETTINGS_MODULE: config.settings.local
       DATABASE_URL: postgres://attendance_user:test123@db:5432/attendance_db
     ports:
       - "8000:8000"

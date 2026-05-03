@@ -24,9 +24,10 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-4o4n-$s^y356xob(g15=_z&_%tuy36p7_ejnrp8xb-x=i11cu$"
+SECRET_KEY = env(
+    "DJANGO_SECRET_KEY",
+    default="django-insecure-4o4n-$s^y356xob(g15=_z&_%tuy36p7_ejnrp8xb-x=i11cu$",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -86,6 +87,7 @@ WSGI_APPLICATION = "config.wsgi.application"
 #         'NAME': BASE_DIR / 'db.sqlite3',
 #     }
 # }
+
 # DATABASE CONFIGURATION
 DATABASES = {
     "default": env.db(
@@ -93,6 +95,17 @@ DATABASES = {
         default="postgres://attendance_user:test123@localhost:5433/attendance_db",
     ),
 }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": "attendance_db",
+#         "USER": "attendance_user",
+#         "PASSWORD": "test123",
+#         "HOST": "localhost",
+#         "PORT": "5433",
+#     }
+# }
 
 # Wrap every request in a transaction
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
