@@ -101,6 +101,9 @@ class ExerciseCompletionSerializer(serializers.ModelSerializer):
 class FinalResultSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
     graded_by = UserSerializer(read_only=True)
+    papers_completed = serializers.IntegerField(read_only=True)
+    exercises_completed = serializers.IntegerField(read_only=True)
+    attendance_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = FinalResult
