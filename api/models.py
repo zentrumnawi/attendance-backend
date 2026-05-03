@@ -266,11 +266,6 @@ class FinalResult(models.Model):
         max_length=10, choices=Status.choices, default=Status.INCOMPLETE
     )
 
-    # Criteria tracking (for transparency in decision)
-    papers_completed = models.IntegerField(default=0)
-    exercises_completed = models.IntegerField(default=0)
-    attendance_count = models.IntegerField(default=0)
-
     # If failed, reason can be stored
     failure_reason = models.TextField(blank=True)
 
@@ -282,6 +277,18 @@ class FinalResult(models.Model):
 
     class Meta:
         verbose_name_plural = "Final results"
+
+    @property
+    def papers_completed(self) -> int:
+        return self.student.paper_submissions.filter(submitted=True).count()
+
+    @property
+    def exercises_completed(self) -> int:
+        return self.student.exercise_completions.filter(completed=True).count()
+
+    @property
+    def attendance_count(self) -> int:
+        return self.student.attendance_records.filter(is_present=True).count()
 
     def __str__(self):
         return f"{self.student.full_name()} - {self.status}"
