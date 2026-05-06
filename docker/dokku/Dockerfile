@@ -23,7 +23,7 @@ RUN cp /usr/share/zoneinfo/Europe/Berlin /etc/localtime \
     && echo "Europe/Berlin" > /etc/timezone
 
 # Copy Pipfile and install python dependencies
-RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.3 python - \
+RUN curl -sSL https://install.python-poetry.org | POETRY_VERSION=2.3.2 python - \
   && ln -s /root/.local/bin/poetry /usr/local/bin/poetry
 COPY --chown=app:app pyproject.toml poetry.lock /
 
