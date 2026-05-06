@@ -8,6 +8,9 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 
+# whitenoise
+MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+
 # SECURITY CONFIGURATION
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_HSTS_SECONDS = 60
