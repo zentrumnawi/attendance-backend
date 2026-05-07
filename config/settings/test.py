@@ -18,4 +18,3 @@ DATABASES = {
     "default": env.db("DATABASE_URL", default="sqlite://:memory:"),
 }
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
-
