@@ -9,6 +9,21 @@ jobs:
       POETRY_VERSION: 2.3.2
       POETRY_VIRTUALENVS_CREATE: false
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
     - uses: actions/checkout@v5
 
@@ -36,7 +51,16 @@ jobs:
       run: |
         poetry install --no-interaction --no-ansi
 
+    - name: Run migrations
+      env:
+        DJANGO_SETTINGS_MODULE: config.settings.test
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
+      run: |
+        poetry run python manage.py migrate
+
     - name: Run tests
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test_db
       run: |  
-        ruff format --check
+        poetry run ruff format --check
         poetry run pytest
