@@ -42,6 +42,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class AuthenticatedUserSerializer(serializers.ModelSerializer):
+    profile = UserProfileSerializer(source="userprofile", read_only=True)
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "last_name", "is_superuser", "profile"]
+
+
 class StudentSerializer(serializers.ModelSerializer):
     group = GroupSerializer(read_only=True)
     department = DepartmentSerializer(read_only=True)
