@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils.dateparse import parse_date
 from .models import (
     Student,
     AttendanceRecord,
@@ -66,22 +67,20 @@ class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
             raise Http404("Student not found")
 
 
-# Get attendance records (according to permissions): in toto , by day or by student
+# Get attendance records (according to permissions): in toto, by date or by student
 class AttendanceRecordList(generics.ListCreateAPIView):
     queryset = AttendanceRecord.objects.all()
     serializer_class = AttendanceRecordSerializer
 
     def get_queryset(self):
         queryset = AttendanceRecord.objects.for_user(self.request.user)
-        day_param = self.request.query_params.get("day")
+        date_param = self.request.query_params.get("date")
         student_pk = self.request.query_params.get("student_pk")
 
-        if day_param:
-            try:
-                day = int(day_param)
-                queryset = queryset.filter(praktikum_day=day)
-            except ValueError:
-                pass
+        if date_param:
+            parsed_date = parse_date(date_param)
+            if parsed_date:
+                queryset = queryset.filter(date=parsed_date)
 
         if student_pk:
             queryset = queryset.filter(student__pk=student_pk)
