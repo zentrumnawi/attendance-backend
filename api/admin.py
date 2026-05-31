@@ -16,6 +16,7 @@ from .models import (
     Paper,
     Exercise,
     AttendanceRecord,
+    LabDay,
     PaperSubmission,
     ExerciseCompletion,
     FinalResult,
@@ -98,6 +99,15 @@ class AttendanceRecordAdmin(admin.ModelAdmin):
     list_display = ["student", "praktikum_day", "date", "is_present"]
     list_filter = ["is_present", "praktikum_day"]
     search_fields = ["student__first_name", "student__last_name"]
+    date_hierarchy = "date"
+
+    def get_queryset(self, request):
+        return self.model.objects.for_user(request.user)
+
+
+class LabDayAdmin(admin.ModelAdmin):
+    list_display = ["group", "date", "praktikum_day"]
+    list_filter = ["group"]
     date_hierarchy = "date"
 
     def get_queryset(self, request):
@@ -212,6 +222,7 @@ admin_site.register(Experiment, ExperimentAdmin)
 admin_site.register(Paper, PaperAdmin)
 admin_site.register(Exercise, ExerciseAdmin)
 admin_site.register(AttendanceRecord, AttendanceRecordAdmin)
+admin_site.register(LabDay, LabDayAdmin)
 admin_site.register(PaperSubmission, PaperSubmissionAdmin)
 admin_site.register(ExerciseCompletion, ExerciseCompletionAdmin)
 admin_site.register(FinalResult, FinalResultAdmin)

@@ -169,6 +169,36 @@ class AttendanceRecord(models.Model):
         return f"{self.student.full_name()} - Day {self.praktikum_day}: {status}"
 
 
+class GroupScopedManager(models.Manager):
+    def for_user(self, user):
+        if user.is_superuser:
+            return self.get_queryset()
+        try:
+            return self.get_queryset().filter(group=user.userprofile.group)
+        except UserProfile.DoesNotExist:
+            return self.none()
+
+
+class LabDay(models.Model):
+    """A roll-call session for a group on a calendar date"""
+
+    objects = GroupScopedManager()
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="lab_days")
+    date = models.DateField()
+    praktikum_day = models.IntegerField(
+        help_text="Day number of the praktikum (1, 2, 3, ...)"
+    )
+
+    class Meta:
+        ordering = ["-date"]
+        unique_together = ["group", "date"]
+
+    def __str__(self):
+        return f"{self.group} - {self.date} (day {self.praktikum_day})"
+
+
 class PaperSubmission(models.Model):
     """Track which papers students have submitted"""
 
