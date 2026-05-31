@@ -9,6 +9,7 @@ from django.utils.dateparse import parse_date
 from .models import (
     Student,
     AttendanceRecord,
+    LabDay,
     PaperSubmission,
     ExerciseCompletion,
     FinalResult,
@@ -107,6 +108,30 @@ class AttendanceRecordDetail(generics.RetrieveUpdateDestroyAPIView):
             raise Http404("Please provide 'student_pk' and 'praktikum_day'.")
 
         return obj
+
+
+class AttendanceCalendarView(APIView):
+    """Roll-call dates for the calendar"""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = LabDay.objects.for_user(request.user)
+
+        lab_days = list(queryset.order_by("date"))
+
+        return Response(
+            {
+                "dates": [
+                    {
+                        "date": lab_day.date.isoformat(),
+                        "praktikum_day": lab_day.praktikum_day,
+                        "group": lab_day.group.name,
+                    }
+                    for lab_day in lab_days
+                ]
+            }
+        )
 
 
 class PaperSubmissionList(generics.ListCreateAPIView):
