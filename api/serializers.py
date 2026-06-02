@@ -87,6 +87,19 @@ class AttendanceRecordSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class AttendanceRecordBulkItemSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    is_present = serializers.BooleanField()
+    comment = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+
+class AttendanceRecordBulkSerializer(serializers.Serializer):
+    date = serializers.DateField()
+    praktikum_day = serializers.IntegerField(min_value=1)
+    group = serializers.CharField()
+    records = AttendanceRecordBulkItemSerializer(many=True, allow_empty=False)
+
+
 class PaperSubmissionSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
     paper = PaperSerializer(read_only=True)
