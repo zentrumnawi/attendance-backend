@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
+from django.db import transaction
+from rest_framework.exceptions import ValidationError
 from .models import (
     Student,
     AttendanceRecord,
@@ -24,6 +26,8 @@ from .models import (
 from .serializers import (
     StudentSerializer,
     AttendanceRecordSerializer,
+    AttendanceRecordBulkSerializer,
+    AttendanceRecordBulkItemSerializer,
     PaperSubmissionSerializer,
     ExerciseCompletionSerializer,
     FinalResultSerializer,
@@ -131,6 +135,50 @@ class AttendanceCalendarView(APIView):
                     for lab_day in lab_days
                 ]
             }
+        )
+
+
+class AttendanceRecordBulkCreateView(APIView):
+    """Create or update all attendance records for one roll-call session"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AttendanceRecordBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # check for duplicate student_id in records
+        student_ids = [item["student_id"] for item in data["records"]]
+        if len(student_ids) != len(set(student_ids)):
+            raise ValidationError({"records": "Duplicate student_id in records."})
+
+        saved_records = []
+        with transaction.atomic():
+            # Make sure a lab day entry is created (additionally to attendance records)
+            group_id = Group.objects.only("id").get(name=data["group"]).id
+            if group_id is not None:
+                LabDay.objects.get_or_create(
+                    group_id=group_id,
+                    date=data["date"],
+                    defaults={"praktikum_day": data["praktikum_day"]},
+                )
+
+            for item in data["records"]:
+                record, _created = AttendanceRecord.objects.update_or_create(
+                    student_id=item["student_id"],
+                    praktikum_day=data["praktikum_day"],
+                    defaults={
+                        "date": data["date"],
+                        "is_present": item["is_present"],
+                        "comment": item.get("comment"),
+                    },
+                )
+                saved_records.append(record)
+
+        return Response(
+            AttendanceRecordSerializer(saved_records, many=True).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
