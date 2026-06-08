@@ -3,9 +3,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
+from django.db import transaction
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import (
     Student,
     AttendanceRecord,
@@ -24,6 +27,8 @@ from .models import (
 from .serializers import (
     StudentSerializer,
     AttendanceRecordSerializer,
+    AttendanceRecordBulkSerializer,
+    AttendanceRecordBulkItemSerializer,
     PaperSubmissionSerializer,
     ExerciseCompletionSerializer,
     FinalResultSerializer,
@@ -132,6 +137,102 @@ class AttendanceCalendarView(APIView):
                 ]
             }
         )
+
+
+class AttendanceRecordBulkCreateView(APIView):
+    """Create or update all attendance records for one roll-call session"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AttendanceRecordBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # check for duplicate student_id in records
+        student_ids = [item["student_id"] for item in data["records"]]
+        if len(student_ids) != len(set(student_ids)):
+            raise ValidationError({"records": "Duplicate student_id in records."})
+
+        saved_records = []
+        with transaction.atomic():
+            # Make sure a lab day entry is created (additionally to attendance records)
+            group_id = Group.objects.only("id").get(name=data["group"]).id
+            if group_id is not None:
+                LabDay.objects.get_or_create(
+                    group_id=group_id,
+                    date=data["date"],
+                    defaults={"praktikum_day": data["praktikum_day"]},
+                )
+
+            for item in data["records"]:
+                record, _created = AttendanceRecord.objects.update_or_create(
+                    student_id=item["student_id"],
+                    praktikum_day=data["praktikum_day"],
+                    defaults={
+                        "date": data["date"],
+                        "is_present": item["is_present"],
+                        "comment": item.get("comment"),
+                    },
+                )
+                saved_records.append(record)
+
+        return Response(
+            AttendanceRecordSerializer(saved_records, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class AttendanceRecordBulkDeleteView(APIView):
+    """Delete all attendance records for a group on a given date"""
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        date_param = request.query_params.get("date")
+        if not date_param:
+            raise ValidationError({"date": "This query parameter is required."})
+
+        parsed_date = parse_date(date_param)
+        if parsed_date is None:
+            raise ValidationError({"date": "Enter a valid date (YYYY-MM-DD)."})
+
+        group_param = request.query_params.get("group")
+        if not group_param:
+            raise ValidationError({"group": "This query parameter is required."})
+
+        group = self._resolve_group(request.user, group_param)
+
+        queryset = AttendanceRecord.objects.filter(
+            date=parsed_date,
+            student__group=group,
+        )
+        deleted_count, _ = queryset.delete()
+
+        # delete lab day entry
+        LabDay.objects.filter(group=group, date=parsed_date).delete()
+
+        return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
+
+    def _resolve_group(self, user, group_param: str) -> Group:
+        group = self._get_group_by_param(group_param)
+        if user.is_superuser:
+            return group
+
+        try:
+            user_group = user.userprofile.group
+        except UserProfile.DoesNotExist:
+            raise PermissionDenied("You do not have permission to delete attendance.")
+
+        if group.pk != user_group.pk:
+            raise PermissionDenied("You can only delete attendance for your own group.")
+        return group
+
+    def _get_group_by_param(self, group_param: str) -> Group:
+        try:
+            return Group.objects.get(name=group_param)
+        except Group.DoesNotExist:
+            raise ValidationError({"group": "Group not found."})
 
 
 class PaperSubmissionList(generics.ListCreateAPIView):
