@@ -3,11 +3,12 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils.dateparse import parse_date
 from django.db import transaction
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from .models import (
     Student,
     AttendanceRecord,
@@ -180,6 +181,58 @@ class AttendanceRecordBulkCreateView(APIView):
             AttendanceRecordSerializer(saved_records, many=True).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class AttendanceRecordBulkDeleteView(APIView):
+    """Delete all attendance records for a group on a given date"""
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        date_param = request.query_params.get("date")
+        if not date_param:
+            raise ValidationError({"date": "This query parameter is required."})
+
+        parsed_date = parse_date(date_param)
+        if parsed_date is None:
+            raise ValidationError({"date": "Enter a valid date (YYYY-MM-DD)."})
+
+        group_param = request.query_params.get("group")
+        if not group_param:
+            raise ValidationError({"group": "This query parameter is required."})
+
+        group = self._resolve_group(request.user, group_param)
+
+        queryset = AttendanceRecord.objects.filter(
+            date=parsed_date,
+            student__group=group,
+        )
+        deleted_count, _ = queryset.delete()
+
+        # delete lab day entry
+        LabDay.objects.filter(group=group, date=parsed_date).delete()
+
+        return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
+
+    def _resolve_group(self, user, group_param: str) -> Group:
+        group = self._get_group_by_param(group_param)
+        if user.is_superuser:
+            return group
+
+        try:
+            user_group = user.userprofile.group
+        except UserProfile.DoesNotExist:
+            raise PermissionDenied("You do not have permission to delete attendance.")
+
+        if group.pk != user_group.pk:
+            raise PermissionDenied("You can only delete attendance for your own group.")
+        return group
+
+    def _get_group_by_param(self, group_param: str) -> Group:
+        try:
+            return Group.objects.get(name=group_param)
+        except Group.DoesNotExist:
+            raise ValidationError({"group": "Group not found."})
 
 
 class PaperSubmissionList(generics.ListCreateAPIView):
