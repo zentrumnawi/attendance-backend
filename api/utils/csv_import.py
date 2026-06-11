@@ -138,4 +138,7 @@ def bulk_import_students(valid_students: List[Student]) -> int:
 
     with transaction.atomic():
         created = Student.objects.bulk_create(valid_students)
+        FinalResult.objects.bulk_create(
+            [FinalResult(student=student) for student in created]
+        )
     return len(created)
