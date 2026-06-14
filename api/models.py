@@ -111,21 +111,17 @@ class Paper(models.Model):
     """Individual papers that students submit for experiments"""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    experiment = models.ForeignKey(
-        Experiment, on_delete=models.CASCADE, related_name="papers"
-    )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    order = models.IntegerField(default=1)
+    lab_day = models.IntegerField(default=1)
 
     # Each paper can be submitted by multiple students (tracked through PaperSubmission)
 
     class Meta:
-        ordering = ["experiment__order", "order"]
-        unique_together = ["experiment", "order"]
+        ordering = ["lab_day"]
 
     def __str__(self):
-        return f"{self.experiment.title} - Paper {self.order}: {self.title}"
+        return f"Paper {self.lab_day}"
 
 
 class Exercise(models.Model):
@@ -213,6 +209,9 @@ class PaperSubmission(models.Model):
     )
     submitted = models.BooleanField(default=False)
     submission_date = models.DateTimeField(blank=True, null=True)
+    necessary_corrections = models.TextField(blank=True, null=True)
+    accepted = models.BooleanField(default=False)
+    accepted_date = models.DateTimeField(blank=True, null=True)
 
     # Optional: track if submission was late
     is_late = models.BooleanField(default=False)
@@ -222,7 +221,6 @@ class PaperSubmission(models.Model):
             "student",
             "paper",
         ]  # One submission record per student per paper
-        ordering = ["paper__experiment__order", "paper__order"]
 
     def __str__(self):
         status = "1" if self.submitted else "0"
