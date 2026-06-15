@@ -95,16 +95,16 @@ class Experiment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    order = models.IntegerField(help_text="Display order of experiments")
+    lab_day = models.IntegerField(default=1)
 
     # Each experiment can have multiple papers
     requires_paper_submission = models.BooleanField(default=True)
 
     class Meta:
-        ordering = ["order"]
+        ordering = ["lab_day"]
 
     def __str__(self):
-        return f"{self.order}. {self.title}"
+        return f"{self.lab_day}. {self.title}"
 
 
 class Paper(models.Model):

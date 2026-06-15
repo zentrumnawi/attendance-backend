@@ -82,7 +82,7 @@ class StudentAdmin(admin.ModelAdmin):
 
 
 class ExperimentAdmin(admin.ModelAdmin):
-    list_display = ["order", "title", "requires_paper_submission"]
+    list_display = ["lab_day", "title", "requires_paper_submission"]
     list_editable = ["requires_paper_submission"]
 
 
