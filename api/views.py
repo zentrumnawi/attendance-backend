@@ -237,6 +237,27 @@ class AttendanceRecordBulkDeleteView(APIView):
             raise ValidationError({"group": "Group not found."})
 
 
+class ExperimentList(generics.ListCreateAPIView):
+    queryset = Experiment.objects.all()
+    serializer_class = ExperimentSerializer
+
+    def get_queryset(self):
+        lab_day = self.request.query_params.get("lab_day")
+        if lab_day:
+            return Experiment.objects.filter(lab_day=lab_day)
+        return Experiment.objects.all()
+
+
+class ExperimentDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Experiment.objects.all()
+    serializer_class = ExperimentSerializer
+
+    def get_object(self):
+        if not self.request.user.is_superuser:
+            raise PermissionDenied("Only superusers can change experiments.")
+        return get_object_or_404(Experiment, pk=self.kwargs.get("pk"))
+
+
 class PaperSubmissionList(generics.ListCreateAPIView):
     queryset = PaperSubmission.objects.all()
     serializer_class = PaperSubmissionSerializer

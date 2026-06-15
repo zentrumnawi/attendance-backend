@@ -49,6 +49,16 @@ urlpatterns = [
         name="paper-submission-detail",
     ),
     path(
+        "experiments/",
+        views.ExperimentList.as_view(),
+        name="experiment-list",
+    ),
+    path(
+        "experiments/<uuid:pk>/",
+        views.ExperimentDetail.as_view(),
+        name="experiment-detail",
+    ),
+    path(
         "exercise-completions/",
         views.ExerciseCompletionList.as_view(),
         name="exercise-completion-list",
