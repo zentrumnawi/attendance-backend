@@ -59,6 +59,21 @@ class StudentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class MinimalStudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Student
+        fields = ["id", "matriculation_number"]
+
+
+# class MinimalPaperSubmissionSerializer(serializers.ModelSerializer):
+#     student = MinimalStudentSerializer(read_only=True)
+#     paper = PaperSerializer(read_only=True)
+
+#     class Meta:
+#         model = PaperSubmission
+#         fields = ["id", "student", "paper", "submitted", "submission_date", "necessary_corrections", "accepted", "accepted_date"]
+
+
 class ExperimentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Experiment
@@ -100,8 +115,25 @@ class AttendanceRecordBulkSerializer(serializers.Serializer):
     records = AttendanceRecordBulkItemSerializer(many=True, allow_empty=False)
 
 
+class PaperSubmissionBulkItemSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    submitted = serializers.BooleanField()
+    submission_date = serializers.DateTimeField(required=False, allow_null=True)
+    necessary_corrections = serializers.CharField(
+        required=False, allow_null=True, allow_blank=True
+    )
+    accepted = serializers.BooleanField(required=False, default=False)
+    accepted_date = serializers.DateTimeField(required=False, allow_null=True)
+    is_late = serializers.BooleanField(required=False, default=False)
+
+
+class PaperSubmissionBulkSerializer(serializers.Serializer):
+    lab_day = serializers.IntegerField(min_value=1)
+    records = PaperSubmissionBulkItemSerializer(many=True, allow_empty=False)
+
+
 class PaperSubmissionSerializer(serializers.ModelSerializer):
-    student = StudentSerializer(read_only=True)
+    student = MinimalStudentSerializer(read_only=True)
     paper = PaperSerializer(read_only=True)
 
     class Meta:

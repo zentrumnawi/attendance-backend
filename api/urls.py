@@ -39,6 +39,11 @@ urlpatterns = [
         name="paper-submission-list",
     ),
     path(
+        "paper-submissions/bulk/",
+        views.PaperSubmissionBulkCreateView.as_view(),
+        name="paper-submission-bulk",
+    ),
+    path(
         "paper-submissions/<uuid:student_pk>/<uuid:paper_id>/",
         views.PaperSubmissionDetail.as_view(),
         name="paper-submission-detail",

@@ -87,8 +87,7 @@ class ExperimentAdmin(admin.ModelAdmin):
 
 
 class PaperAdmin(admin.ModelAdmin):
-    list_display = ["experiment", "order", "title"]
-    list_filter = ["experiment"]
+    list_display = ["lab_day", "title"]
 
 
 class ExerciseAdmin(admin.ModelAdmin):
@@ -115,8 +114,16 @@ class LabDayAdmin(admin.ModelAdmin):
 
 
 class PaperSubmissionAdmin(admin.ModelAdmin):
-    list_display = ["student", "paper", "submitted", "submission_date"]
-    list_filter = ["submitted", "paper__experiment"]
+    list_display = [
+        "student",
+        "paper",
+        "submitted",
+        "submission_date",
+        "necessary_corrections",
+        "accepted",
+        "accepted_date",
+    ]
+    list_filter = ["submitted", "paper__lab_day"]
     search_fields = ["student__first_name", "student__last_name"]
 
     def get_queryset(self, request):

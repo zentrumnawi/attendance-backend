@@ -30,6 +30,8 @@ from .serializers import (
     AttendanceRecordBulkSerializer,
     AttendanceRecordBulkItemSerializer,
     PaperSubmissionSerializer,
+    PaperSubmissionBulkSerializer,
+    MinimalStudentSerializer,
     ExerciseCompletionSerializer,
     FinalResultSerializer,
     GroupSerializer,
@@ -240,16 +242,57 @@ class PaperSubmissionList(generics.ListCreateAPIView):
     serializer_class = PaperSubmissionSerializer
 
     def get_queryset(self):
-        paper_id = self.request.query_params.get("paper_id")
-        if paper_id:
-            try:
-                return PaperSubmission.objects.for_user(self.request.user).filter(
-                    paper__pk=paper_id
+        lab_day = self.request.query_params.get("lab_day")
+        if not lab_day:
+            raise ValidationError({"lab_day": "This query parameter is required."})
+        try:
+            return PaperSubmission.objects.for_user(self.request.user).filter(
+                paper__lab_day=lab_day
+            )
+        except Paper.DoesNotExist:
+            raise Http404("Paper not found")
+
+
+class PaperSubmissionBulkCreateView(APIView):
+    """Create or update paper submissions for multiple students on one lab day"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = PaperSubmissionBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        student_ids = [item["student_id"] for item in data["records"]]
+        if len(student_ids) != len(set(student_ids)):
+            raise ValidationError({"records": "Duplicate student_id in records."})
+
+        try:
+            paper = Paper.objects.get(lab_day=data["lab_day"])
+        except Paper.DoesNotExist:
+            raise ValidationError({"lab_day": "Paper not found."})
+
+        saved_submissions = []
+        with transaction.atomic():
+            for item in data["records"]:
+                submission, _created = PaperSubmission.objects.update_or_create(
+                    student_id=item["student_id"],
+                    paper=paper,
+                    defaults={
+                        "submitted": item["submitted"],
+                        "submission_date": item.get("submission_date"),
+                        "necessary_corrections": item.get("necessary_corrections"),
+                        "accepted": item.get("accepted", False),
+                        "accepted_date": item.get("accepted_date"),
+                        "is_late": item.get("is_late", False),
+                    },
                 )
-            except Paper.DoesNotExist:
-                raise Http404("Paper not found")
-        else:
-            return PaperSubmission.objects.for_user(self.request.user)
+                saved_submissions.append(submission)
+
+        return Response(
+            PaperSubmissionSerializer(saved_submissions, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class PaperSubmissionDetail(generics.RetrieveUpdateDestroyAPIView):
