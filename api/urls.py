@@ -59,6 +59,11 @@ urlpatterns = [
         name="experiment-detail",
     ),
     path(
+        "experiments/completions/",
+        views.ExperimentCompletionPerStudent.as_view(),
+        name="experiment-completion-per-student",
+    ),
+    path(
         "exercise-completions/",
         views.ExerciseCompletionList.as_view(),
         name="exercise-completion-list",

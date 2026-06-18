@@ -258,6 +258,35 @@ class ExperimentDetail(generics.RetrieveUpdateDestroyAPIView):
         return get_object_or_404(Experiment, pk=self.kwargs.get("pk"))
 
 
+class ExperimentCompletionPerStudent(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = Student.objects.for_user(request.user)
+
+        lab_day = request.query_params.get("lab_day")
+        if not lab_day:
+            raise ValidationError({"lab_day": "This query parameter is required."})
+
+        experiments = Experiment.objects.filter(lab_day=lab_day)
+        if not experiments:
+            raise ValidationError({"lab_day": "This lab day does not exist."})
+
+        experiment_completions = []
+
+        for student in queryset:
+            experiment_completions.append(
+                {
+                    "student": student.id,
+                    "experiment_completions": student.experiment_completions.filter(
+                        completed=True, experiment__in=experiments
+                    ).values_list("experiment_id", flat=True),
+                }
+            )
+
+        return Response(experiment_completions, status=status.HTTP_200_OK)
+
+
 class PaperSubmissionList(generics.ListCreateAPIView):
     queryset = PaperSubmission.objects.all()
     serializer_class = PaperSubmissionSerializer
