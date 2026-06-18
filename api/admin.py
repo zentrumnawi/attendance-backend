@@ -23,6 +23,7 @@ from .models import (
     Group,
     UserProfile,
     Department,
+    ExperimentCompletion,
 )
 from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
 
@@ -84,6 +85,14 @@ class StudentAdmin(admin.ModelAdmin):
 class ExperimentAdmin(admin.ModelAdmin):
     list_display = ["lab_day", "title", "requires_paper_submission"]
     list_editable = ["requires_paper_submission"]
+
+
+class ExperimentCompletionAdmin(admin.ModelAdmin):
+    list_display = ["student", "experiment", "completed", "completion_date"]
+    list_filter = ["completed", "experiment"]
+
+    def get_queryset(self, request):
+        return self.model.objects.for_user(request.user)
 
 
 class PaperAdmin(admin.ModelAdmin):
@@ -226,6 +235,7 @@ def import_students_csv_view(request):
 admin_site = CustomAdminSite(name="attendance_admin")
 admin_site.register(Student, StudentAdmin)
 admin_site.register(Experiment, ExperimentAdmin)
+admin_site.register(ExperimentCompletion, ExperimentCompletionAdmin)
 admin_site.register(Paper, PaperAdmin)
 admin_site.register(Exercise, ExerciseAdmin)
 admin_site.register(AttendanceRecord, AttendanceRecordAdmin)

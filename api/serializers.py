@@ -11,6 +11,7 @@ from .models import (
     Paper,
     Exercise,
     UserProfile,
+    ExperimentCompletion,
 )
 from django.contrib.auth.models import User
 
@@ -77,6 +78,15 @@ class MinimalStudentSerializer(serializers.ModelSerializer):
 class ExperimentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Experiment
+        fields = "__all__"
+
+
+class ExperimentCompletionSerializer(serializers.ModelSerializer):
+    student = StudentSerializer(read_only=True)
+    experiment = ExperimentSerializer(read_only=True)
+
+    class Meta:
+        model = ExperimentCompletion
         fields = "__all__"
 
 

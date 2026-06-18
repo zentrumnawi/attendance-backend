@@ -107,6 +107,31 @@ class Experiment(models.Model):
         return f"{self.lab_day}. {self.title}"
 
 
+class ExperimentCompletion(models.Model):
+    """Track which experiments students have completed"""
+
+    objects = GroupRestrictedManager()
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    student = models.ForeignKey(
+        Student, on_delete=models.CASCADE, related_name="experiment_completions"
+    )
+
+    experiment = models.ForeignKey(
+        Experiment, on_delete=models.CASCADE, related_name="completions"
+    )
+
+    completed = models.BooleanField(default=False)
+    completion_date = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        unique_together = [
+            "student",
+            "experiment",
+        ]
+
+
 class Paper(models.Model):
     """Individual papers that students submit for experiments"""
 
