@@ -90,6 +90,18 @@ class ExperimentCompletionSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ExperimentCompletionBulkItemSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    experiment_ids = serializers.ListField(
+        child=serializers.UUIDField(), allow_empty=True
+    )
+
+
+class ExperimentCompletionBulkSerializer(serializers.Serializer):
+    records = ExperimentCompletionBulkItemSerializer(many=True, allow_empty=False)
+    lab_day = serializers.IntegerField(min_value=1)
+
+
 class PaperSerializer(serializers.ModelSerializer):
     experiment = ExperimentSerializer(read_only=True)
 
