@@ -59,6 +59,11 @@ urlpatterns = [
         name="experiment-detail",
     ),
     path(
+        "experiments/completions/bulk/",
+        views.ExperimentCompletionBulkCreateOrUpdateView.as_view(),
+        name="experiment-completion-bulk",
+    ),
+    path(
         "experiments/completions/",
         views.ExperimentCompletionPerStudent.as_view(),
         name="experiment-completion-per-student",
