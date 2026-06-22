@@ -41,6 +41,16 @@ class GroupRestrictedManager(models.Manager):
             return self.none()
 
 
+class GroupScopedManager(models.Manager):
+    def for_user(self, user):
+        if user.is_superuser:
+            return self.get_queryset()
+        try:
+            return self.get_queryset().filter(group=user.userprofile.group)
+        except UserProfile.DoesNotExist:
+            return self.none()
+
+
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.PROTECT)
@@ -52,7 +62,7 @@ class UserProfile(models.Model):
 class Student(models.Model):
     """Individual student information"""
 
-    objects = GroupRestrictedManager()
+    objects = GroupScopedManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     first_name = models.CharField(max_length=100)
@@ -188,16 +198,6 @@ class AttendanceRecord(models.Model):
         status = "1" if self.is_present else "0"
 
         return f"{self.student.full_name()} - Day {self.praktikum_day}: {status}"
-
-
-class GroupScopedManager(models.Manager):
-    def for_user(self, user):
-        if user.is_superuser:
-            return self.get_queryset()
-        try:
-            return self.get_queryset().filter(group=user.userprofile.group)
-        except UserProfile.DoesNotExist:
-            return self.none()
 
 
 class LabDay(models.Model):
