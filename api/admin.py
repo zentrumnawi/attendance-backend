@@ -100,7 +100,7 @@ class PaperAdmin(admin.ModelAdmin):
 
 
 class ExerciseAdmin(admin.ModelAdmin):
-    list_display = ["order", "title"]
+    list_display = ["lab_day", "title"]
 
 
 class AttendanceRecordAdmin(admin.ModelAdmin):
@@ -140,7 +140,7 @@ class PaperSubmissionAdmin(admin.ModelAdmin):
 
 
 class ExerciseCompletionAdmin(admin.ModelAdmin):
-    list_display = ["student", "partner", "exercise", "completed", "completion_date"]
+    list_display = ["student", "exercise", "completed", "completion_date"]
     list_filter = ["completed", "exercise"]
 
     def get_queryset(self, request):

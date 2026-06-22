@@ -165,7 +165,6 @@ class PaperSubmissionSerializer(serializers.ModelSerializer):
 
 class ExerciseCompletionSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
-    partner = StudentSerializer(read_only=True)
     exercise = ExerciseSerializer(read_only=True)
 
     class Meta:
