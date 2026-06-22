@@ -49,6 +49,26 @@ urlpatterns = [
         name="paper-submission-detail",
     ),
     path(
+        "experiments/",
+        views.ExperimentList.as_view(),
+        name="experiment-list",
+    ),
+    path(
+        "experiments/<uuid:pk>/",
+        views.ExperimentDetail.as_view(),
+        name="experiment-detail",
+    ),
+    path(
+        "experiments/completions/bulk/",
+        views.ExperimentCompletionBulkCreateOrUpdateView.as_view(),
+        name="experiment-completion-bulk",
+    ),
+    path(
+        "experiments/completions/",
+        views.ExperimentCompletionPerStudent.as_view(),
+        name="experiment-completion-per-student",
+    ),
+    path(
         "exercise-completions/",
         views.ExerciseCompletionList.as_view(),
         name="exercise-completion-list",

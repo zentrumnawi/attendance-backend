@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.db import transaction
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -19,6 +20,7 @@ from .models import (
     Group,
     Department,
     Experiment,
+    ExperimentCompletion,
     Paper,
     Exercise,
     UserProfile,
@@ -40,9 +42,19 @@ from .serializers import (
     PaperSerializer,
     ExerciseSerializer,
     UserProfileSerializer,
+    ExperimentCompletionBulkSerializer,
+    ExperimentCompletionSerializer,
 )
 
 from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
+
+
+def _allowed_student_ids(user, student_ids):
+    return set(
+        Student.objects.for_user(user)
+        .filter(pk__in=student_ids)
+        .values_list("pk", flat=True)
+    )
 
 
 class StudentList(generics.ListCreateAPIView):
@@ -50,13 +62,7 @@ class StudentList(generics.ListCreateAPIView):
     serializer_class = StudentSerializer
 
     def get_queryset(self):
-        if self.request.user.is_superuser:
-            return Student.objects.all()
-        try:
-            user_group = self.request.user.userprofile.group
-            return Student.objects.filter(group=user_group)
-        except UserProfile.DoesNotExist:
-            return Student.objects.none()
+        return Student.objects.for_user(self.request.user)
 
 
 class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -64,15 +70,10 @@ class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = StudentSerializer
 
     def get_object(self):
-        if self.request.user.is_superuser:
-            return get_object_or_404(Student, pk=self.kwargs.get("pk"))
-        try:
-            user_group = self.request.user.userprofile.group
-            return get_object_or_404(
-                Student, pk=self.kwargs.get("pk"), group=user_group
-            )
-        except UserProfile.DoesNotExist:
-            raise Http404("Student not found")
+        return get_object_or_404(
+            Student.objects.for_user(self.request.user),
+            pk=self.kwargs.get("pk"),
+        )
 
 
 # Get attendance records (according to permissions): in toto, by date or by student
@@ -235,6 +236,107 @@ class AttendanceRecordBulkDeleteView(APIView):
             return Group.objects.get(name=group_param)
         except Group.DoesNotExist:
             raise ValidationError({"group": "Group not found."})
+
+
+class ExperimentList(generics.ListCreateAPIView):
+    queryset = Experiment.objects.all()
+    serializer_class = ExperimentSerializer
+
+    def get_queryset(self):
+        lab_day = self.request.query_params.get("lab_day")
+        if lab_day:
+            return Experiment.objects.filter(lab_day=lab_day)
+        return Experiment.objects.all()
+
+
+class ExperimentDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Experiment.objects.all()
+    serializer_class = ExperimentSerializer
+
+    def get_object(self):
+        if not self.request.user.is_superuser:
+            raise PermissionDenied("Only superusers can change experiments.")
+        return get_object_or_404(Experiment, pk=self.kwargs.get("pk"))
+
+
+class ExperimentCompletionPerStudent(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = Student.objects.for_user(request.user)
+
+        lab_day = request.query_params.get("lab_day")
+        if not lab_day:
+            raise ValidationError({"lab_day": "This query parameter is required."})
+
+        experiments = Experiment.objects.filter(lab_day=lab_day)
+        if not experiments:
+            raise ValidationError({"lab_day": "This lab day does not exist."})
+
+        experiment_completions = []
+
+        for student in queryset:
+            experiment_completions.append(
+                {
+                    "student": student.id,
+                    "experiment_completions": student.experiment_completions.filter(
+                        completed=True, experiment__in=experiments
+                    ).values_list("experiment_id", flat=True),
+                }
+            )
+
+        return Response(experiment_completions, status=status.HTTP_200_OK)
+
+
+class ExperimentCompletionBulkCreateOrUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ExperimentCompletionBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        student_ids = [item["student_id"] for item in data["records"]]
+
+        experiments_for_day = Experiment.objects.filter(lab_day=data["lab_day"])
+        if not experiments_for_day.exists():
+            raise ValidationError({"lab_day": "This lab day does not exist."})
+
+        lab_day_experiment_ids = set(experiments_for_day.values_list("pk", flat=True))
+
+        saved_completions = []
+        with transaction.atomic():
+            for item in data["records"]:
+                completed_experiment_ids = set(item["experiment_ids"])
+                for experiment in experiments_for_day:
+                    if experiment.id in completed_experiment_ids:
+                        completion, _created = (
+                            ExperimentCompletion.objects.update_or_create(
+                                student_id=item["student_id"],
+                                experiment_id=experiment.id,
+                                defaults={
+                                    "completed": True,
+                                    "completion_date": timezone.now(),
+                                },
+                            )
+                        )
+                    else:
+                        completion, _created = (
+                            ExperimentCompletion.objects.update_or_create(
+                                student_id=item["student_id"],
+                                experiment_id=experiment.id,
+                                defaults={
+                                    "completed": False,
+                                    "completion_date": None,
+                                },
+                            )
+                        )
+                    saved_completions.append(completion)
+
+        return Response(
+            ExperimentCompletionSerializer(saved_completions, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class PaperSubmissionList(generics.ListCreateAPIView):

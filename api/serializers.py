@@ -11,6 +11,7 @@ from .models import (
     Paper,
     Exercise,
     UserProfile,
+    ExperimentCompletion,
 )
 from django.contrib.auth.models import User
 
@@ -78,6 +79,27 @@ class ExperimentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Experiment
         fields = "__all__"
+
+
+class ExperimentCompletionSerializer(serializers.ModelSerializer):
+    student = StudentSerializer(read_only=True)
+    experiment = ExperimentSerializer(read_only=True)
+
+    class Meta:
+        model = ExperimentCompletion
+        fields = "__all__"
+
+
+class ExperimentCompletionBulkItemSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    experiment_ids = serializers.ListField(
+        child=serializers.UUIDField(), allow_empty=True
+    )
+
+
+class ExperimentCompletionBulkSerializer(serializers.Serializer):
+    records = ExperimentCompletionBulkItemSerializer(many=True, allow_empty=False)
+    lab_day = serializers.IntegerField(min_value=1)
 
 
 class PaperSerializer(serializers.ModelSerializer):
