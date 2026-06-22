@@ -50,13 +50,11 @@ from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
 
 
 def _allowed_student_ids(user, student_ids):
-    queryset = Student.objects.filter(pk__in=student_ids)
-    if not user.is_superuser:
-        try:
-            queryset = queryset.filter(group=user.userprofile.group)
-        except UserProfile.DoesNotExist:
-            return set()
-    return set(queryset.values_list("pk", flat=True))
+    return set(
+        Student.objects.for_user(user)
+        .filter(pk__in=student_ids)
+        .values_list("pk", flat=True)
+    )
 
 
 class StudentList(generics.ListCreateAPIView):
@@ -64,13 +62,7 @@ class StudentList(generics.ListCreateAPIView):
     serializer_class = StudentSerializer
 
     def get_queryset(self):
-        if self.request.user.is_superuser:
-            return Student.objects.all()
-        try:
-            user_group = self.request.user.userprofile.group
-            return Student.objects.filter(group=user_group)
-        except UserProfile.DoesNotExist:
-            return Student.objects.none()
+        return Student.objects.for_user(self.request.user)
 
 
 class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -78,15 +70,10 @@ class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = StudentSerializer
 
     def get_object(self):
-        if self.request.user.is_superuser:
-            return get_object_or_404(Student, pk=self.kwargs.get("pk"))
-        try:
-            user_group = self.request.user.userprofile.group
-            return get_object_or_404(
-                Student, pk=self.kwargs.get("pk"), group=user_group
-            )
-        except UserProfile.DoesNotExist:
-            raise Http404("Student not found")
+        return get_object_or_404(
+            Student.objects.for_user(self.request.user),
+            pk=self.kwargs.get("pk"),
+        )
 
 
 # Get attendance records (according to permissions): in toto, by date or by student
@@ -276,13 +263,7 @@ class ExperimentCompletionPerStudent(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        if request.user.is_superuser:
-            queryset = Student.objects.all()
-        else:
-            try:
-                queryset = Student.objects.filter(group=request.user.userprofile.group)
-            except UserProfile.DoesNotExist:
-                queryset = Student.objects.none()
+        queryset = Student.objects.for_user(request.user)
 
         lab_day = request.query_params.get("lab_day")
         if not lab_day:
