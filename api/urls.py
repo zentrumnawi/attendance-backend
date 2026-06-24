@@ -74,6 +74,16 @@ urlpatterns = [
         name="exercise-completion-list",
     ),
     path(
+        "exercise-completions/status/",
+        views.ExerciseCompletionStatus.as_view(),
+        name="exercise-completion-status",
+    ),
+    path(
+        "exercise-completions/upsert/",
+        views.ExerciseCompletionUpsertView.as_view(),
+        name="exercise-completion-upsert",
+    ),
+    path(
         "exercise-completions/<uuid:student_pk>/<uuid:exercise_id>/",
         views.ExerciseCompletionDetail.as_view(),
         name="exercise-completion-detail",

@@ -35,6 +35,7 @@ from .serializers import (
     PaperSubmissionBulkSerializer,
     MinimalStudentSerializer,
     ExerciseCompletionSerializer,
+    ExerciseCompletionUpsertSerializer,
     FinalResultSerializer,
     GroupSerializer,
     DepartmentSerializer,
@@ -472,6 +473,38 @@ class ExerciseCompletionList(generics.ListCreateAPIView):
                 raise Http404("Exercise not found")
         else:
             return ExerciseCompletion.objects.for_user(self.request.user)
+
+
+class ExerciseCompletionUpsertView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ExerciseCompletionUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        student_id = data["student_id"]
+        if student_id not in _allowed_student_ids(request.user, [student_id]):
+            raise PermissionDenied("You do not have permission to modify this student.")
+
+        try:
+            exercise = Exercise.objects.get(lab_day=data["lab_day"])
+        except Exercise.DoesNotExist:
+            raise ValidationError({"lab_day": "Exercise not found."})
+
+        completion, _created = ExerciseCompletion.objects.update_or_create(
+            student_id=student_id,
+            exercise=exercise,
+            defaults={
+                "completed": data["completed"],
+                "completion_date": timezone.now() if data["completed"] else None,
+            },
+        )
+
+        return Response(
+            ExerciseCompletionSerializer(completion).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class ExerciseCompletionDetail(generics.RetrieveUpdateDestroyAPIView):

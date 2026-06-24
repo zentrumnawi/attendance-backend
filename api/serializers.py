@@ -182,6 +182,12 @@ class ExerciseCompletionSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ExerciseCompletionUpsertSerializer(serializers.Serializer):
+    lab_day = serializers.IntegerField(min_value=1)
+    student_id = serializers.UUIDField()
+    completed = serializers.BooleanField()
+
+
 class LabPartnershipPairSerializer(serializers.Serializer):
     student_a_id = serializers.UUIDField()
     student_b_id = serializers.UUIDField()
