@@ -44,9 +44,16 @@ from .serializers import (
     UserProfileSerializer,
     ExperimentCompletionBulkSerializer,
     ExperimentCompletionSerializer,
+    LabPartnershipBulkSerializer,
+    LabPartnerDetailSerializer,
 )
 
 from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
+from .utils.lab_partner import (
+    clear_group_lab_partners,
+    clear_student_lab_partner,
+    pair_lab_partners,
+)
 
 
 def _allowed_student_ids(user, student_ids):
@@ -55,6 +62,17 @@ def _allowed_student_ids(user, student_ids):
         .filter(pk__in=student_ids)
         .values_list("pk", flat=True)
     )
+
+
+def _lab_partnership_response_for_group(group):
+    students = Student.objects.filter(group=group).order_by("last_name", "first_name")
+    return [
+        {
+            "student_id": student.id,
+            "partner_id": student.lab_partner_id,
+        }
+        for student in students
+    ]
 
 
 class StudentList(generics.ListCreateAPIView):
@@ -288,6 +306,27 @@ class ExperimentCompletionPerStudent(APIView):
         return Response(experiment_completions, status=status.HTTP_200_OK)
 
 
+class ExerciseCompletionStatus(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = Student.objects.for_user(request.user)
+
+        lab_day = request.query_params.get("lab_day")
+        if not lab_day:
+            raise ValidationError({"lab_day": "This query parameter is required."})
+
+        exercises = Exercise.objects.filter(lab_day=lab_day)
+        if not exercises:
+            raise ValidationError({"lab_day": "This lab day does not exist."})
+
+        student_ids = ExerciseCompletion.objects.filter(
+            completed=True, exercise__in=exercises
+        ).values_list("student__id", flat=True)
+
+        return Response(student_ids, status=status.HTTP_200_OK)
+
+
 class ExperimentCompletionBulkCreateOrUpdateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -478,6 +517,127 @@ class FinalResultDetail(generics.RetrieveUpdateDestroyAPIView):
             raise Http404("Please provide 'student_pk'.")
 
         return obj
+
+
+class LabPartnershipPerStudentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        group_param = request.query_params.get("group")
+        if request.user.is_superuser:
+            if not group_param:
+                raise ValidationError({"group": "This query parameter is required."})
+            group = Group.objects.get(name=group_param)
+        else:
+            try:
+                group = request.user.userprofile.group.name
+            except UserProfile.DoesNotExist:
+                raise PermissionDenied(
+                    "You do not have permission to view lab partnerships."
+                )
+
+        return Response(
+            _lab_partnership_response_for_group(group), status=status.HTTP_200_OK
+        )
+
+    def delete(self, request):
+        student_id = request.query_params.get("student_id")
+        if not student_id:
+            raise ValidationError({"student_id": "This query parameter is required."})
+
+        student = get_object_or_404(
+            Student.objects.for_user(request.user), pk=student_id
+        )
+        deleted = clear_student_lab_partner(student)
+        return Response({"deleted": 1 if deleted else 0}, status=status.HTTP_200_OK)
+
+
+class LabPartnershipBulkView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = LabPartnershipBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        group = Group.objects.get(name=data["group"])
+        group_student_ids = set(
+            Student.objects.filter(group=group).values_list("pk", flat=True)
+        )
+
+        # Collect every student ID referenced in the payload
+        # mentioned_student_ids (set): unique IDs — used for coverage and permission checks
+        # all_mentioned_ids (list): every occurrence — used to detect duplicates
+        mentioned_student_ids = set(data["unpaired_student_ids"])
+        all_mentioned_ids = list(data["unpaired_student_ids"])
+        for pair in data["pairs"]:
+            if pair["student_a_id"] == pair["student_b_id"]:
+                raise ValidationError(
+                    {"pairs": "A student cannot be paired with themselves."}
+                )
+            all_mentioned_ids.extend([pair["student_a_id"], pair["student_b_id"]])
+            mentioned_student_ids.add(pair["student_a_id"])
+            mentioned_student_ids.add(pair["student_b_id"])
+
+        # Reject if a student appears in more than one pair or in both a pair and unpaired list
+        if len(all_mentioned_ids) != len(set(all_mentioned_ids)):
+            raise ValidationError(
+                {
+                    "records": "Each student may appear in only one pair or unpaired list."
+                }
+            )
+
+        # Bulk replace requires a complete snapshot: every group member must be included.
+        if mentioned_student_ids != group_student_ids:
+            raise ValidationError(
+                {
+                    "records": (
+                        "Every student in the group must appear in exactly one pair "
+                        "or in unpaired_student_ids."
+                    )
+                }
+            )
+
+        allowed_ids = _allowed_student_ids(request.user, mentioned_student_ids)
+        if allowed_ids != mentioned_student_ids:
+            raise PermissionDenied(
+                "You do not have permission to modify these students."
+            )
+
+        students_by_id = {
+            student.id: student
+            for student in Student.objects.filter(pk__in=mentioned_student_ids)
+        }
+
+        with transaction.atomic():
+            # first clear all lab partnerships, then reset pairs
+            clear_group_lab_partners(group)
+            for pair in data["pairs"]:
+                student_a = students_by_id[pair["student_a_id"]]
+                student_b = students_by_id[pair["student_b_id"]]
+                pair_lab_partners(student_a, student_b)
+
+        return Response(
+            _lab_partnership_response_for_group(group),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class StudentLabPartnerDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        student = get_object_or_404(
+            Student.objects.for_user(request.user).select_related("lab_partner"),
+            pk=pk,
+        )
+
+        return Response(
+            LabPartnerDetailSerializer(
+                {"student_id": student.id, "partner": student.lab_partner}
+            ).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class StudentCSVUploadView(APIView):
