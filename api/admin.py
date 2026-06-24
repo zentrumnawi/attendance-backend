@@ -26,6 +26,7 @@ from .models import (
     ExperimentCompletion,
 )
 from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
+from .utils.lab_partner import set_lab_partner
 
 # Student Admin
 # @admin.register(Student)
@@ -54,6 +55,7 @@ class StudentAdmin(admin.ModelAdmin):
         "matriculation_number",
         "group",
         "department",
+        "lab_partner",
     ]
 
     list_editable = ["group"]
@@ -79,7 +81,17 @@ class StudentAdmin(admin.ModelAdmin):
             kwargs["queryset"] = Group.objects.filter(
                 students__group=request.user.userprofile.group
             )
+        if db_field.name == "lab_partner" and not request.user.is_superuser:
+            kwargs["queryset"] = Student.objects.filter(
+                group=request.user.userprofile.group
+            )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        partner = form.cleaned_data.get("lab_partner")
+        super().save_model(request, obj, form, change)
+        if "lab_partner" in form.changed_data:
+            set_lab_partner(Student.objects.get(pk=obj.pk), partner)
 
 
 class ExperimentAdmin(admin.ModelAdmin):
@@ -100,7 +112,7 @@ class PaperAdmin(admin.ModelAdmin):
 
 
 class ExerciseAdmin(admin.ModelAdmin):
-    list_display = ["order", "title"]
+    list_display = ["lab_day", "title"]
 
 
 class AttendanceRecordAdmin(admin.ModelAdmin):
@@ -140,7 +152,7 @@ class PaperSubmissionAdmin(admin.ModelAdmin):
 
 
 class ExerciseCompletionAdmin(admin.ModelAdmin):
-    list_display = ["student", "partner", "exercise", "completed", "completion_date"]
+    list_display = ["student", "exercise", "completed", "completion_date"]
     list_filter = ["completed", "exercise"]
 
     def get_queryset(self, request):

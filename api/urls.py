@@ -78,6 +78,21 @@ urlpatterns = [
         views.ExerciseCompletionDetail.as_view(),
         name="exercise-completion-detail",
     ),
+    path(
+        "lab-partnerships/",
+        views.LabPartnershipPerStudentView.as_view(),
+        name="lab-partnership-list",
+    ),
+    path(
+        "lab-partnerships/bulk/",
+        views.LabPartnershipBulkView.as_view(),
+        name="lab-partnership-bulk",
+    ),
+    path(
+        "students/<uuid:pk>/lab-partner/",
+        views.StudentLabPartnerDetailView.as_view(),
+        name="student-lab-partner-detail",
+    ),
     path("final-results/", views.FinalResultList.as_view(), name="final-result-list"),
     path(
         "final-results/<uuid:student_pk>/",

@@ -54,16 +54,26 @@ class AuthenticatedUserSerializer(serializers.ModelSerializer):
 class StudentSerializer(serializers.ModelSerializer):
     group = GroupSerializer(read_only=True)
     department = DepartmentSerializer(read_only=True)
+    lab_partner_id = serializers.UUIDField(
+        source="lab_partner.id", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = Student
         fields = "__all__"
+        read_only_fields = ["lab_partner"]
 
 
 class MinimalStudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
         fields = ["id", "matriculation_number"]
+
+
+class LabPartnerStudentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Student
+        fields = ["id", "first_name", "last_name", "matriculation_number"]
 
 
 # class MinimalPaperSubmissionSerializer(serializers.ModelSerializer):
@@ -165,12 +175,29 @@ class PaperSubmissionSerializer(serializers.ModelSerializer):
 
 class ExerciseCompletionSerializer(serializers.ModelSerializer):
     student = StudentSerializer(read_only=True)
-    partner = StudentSerializer(read_only=True)
     exercise = ExerciseSerializer(read_only=True)
 
     class Meta:
         model = ExerciseCompletion
         fields = "__all__"
+
+
+class LabPartnershipPairSerializer(serializers.Serializer):
+    student_a_id = serializers.UUIDField()
+    student_b_id = serializers.UUIDField()
+
+
+class LabPartnershipBulkSerializer(serializers.Serializer):
+    group = serializers.CharField()
+    pairs = LabPartnershipPairSerializer(many=True, allow_empty=True)
+    unpaired_student_ids = serializers.ListField(
+        child=serializers.UUIDField(), allow_empty=True
+    )
+
+
+class LabPartnerDetailSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    partner = LabPartnerStudentSerializer(allow_null=True)
 
 
 class FinalResultSerializer(serializers.ModelSerializer):

@@ -86,6 +86,14 @@ class Student(models.Model):
         related_name="students",
     )
 
+    lab_partner = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="lab_partner_of",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -165,13 +173,13 @@ class Exercise(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    order = models.IntegerField(help_text="Display order of exercises")
+    lab_day = models.IntegerField(default=1)
 
     class Meta:
-        ordering = ["order"]
+        ordering = ["lab_day"]
 
     def __str__(self):
-        return f"Exercise {self.order}: {self.title}"
+        return f"Exercise {self.lab_day}: {self.title}"
 
 
 class AttendanceRecord(models.Model):
@@ -263,14 +271,6 @@ class ExerciseCompletion(models.Model):
         Student, on_delete=models.CASCADE, related_name="exercise_completions"
     )
 
-    partner = models.ForeignKey(
-        Student,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="exercise_partnerships",
-    )
-
     exercise = models.ForeignKey(
         Exercise, on_delete=models.CASCADE, related_name="completions"
     )
@@ -286,18 +286,7 @@ class ExerciseCompletion(models.Model):
 
     def __str__(self):
         status = "1" if self.completed else "0"
-        partner_name = self.partner.full_name() if self.partner else "None"
-        return (
-            f"{self.student.full_name()} - {self.exercise} ({partner_name}): {status}"
-        )
-
-    def clean(self):
-        if self.partner and self.student == self.partner:
-            raise ValidationError("Student cannot be their own partner.")
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
+        return f"{self.student.full_name()} - {self.exercise}: {status}"
 
 
 class FinalResult(models.Model):
