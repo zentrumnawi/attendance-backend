@@ -45,6 +45,7 @@ class UserProfileInline(admin.StackedInline):
 
 class CustomUserAdmin(UserAdmin):
     inlines = (UserProfileInline,)
+    list_display = ["username", "is_superuser", "userprofile__group"]
 
 
 class StudentAdmin(admin.ModelAdmin):
@@ -176,7 +177,8 @@ class FinalResultAdmin(admin.ModelAdmin):
 
 
 class GroupAdmin(admin.ModelAdmin):
-    list_display = ["name"]
+    list_display = ["name", "teaching_assistant"]
+    readonly_fields = ["teaching_assistant"]
 
 
 class DepartmentAdmin(admin.ModelAdmin):
