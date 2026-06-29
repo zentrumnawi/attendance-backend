@@ -24,6 +24,7 @@ from .models import (
     Paper,
     Exercise,
     UserProfile,
+    User,
 )
 
 from .serializers import (
@@ -47,6 +48,8 @@ from .serializers import (
     ExperimentCompletionSerializer,
     LabPartnershipBulkSerializer,
     LabPartnerDetailSerializer,
+    UserSerializer,
+    GroupCreateSerializer,
 )
 
 from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
@@ -255,6 +258,46 @@ class AttendanceRecordBulkDeleteView(APIView):
             return Group.objects.get(name=group_param)
         except Group.DoesNotExist:
             raise ValidationError({"group": "Group not found."})
+
+
+class GroupList(generics.ListCreateAPIView):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+
+    def get_queryset(self):
+        return Group.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        serializer = GroupCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group = serializer.save()
+        return Response(
+            GroupSerializer(group).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class GroupDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+
+    def get_serializer_class(self):
+        if self.request.method in ("PUT", "PATCH"):
+            return GroupCreateSerializer
+        return GroupSerializer
+
+    def get_object(self):
+        if not self.request.user.is_superuser:
+            raise PermissionDenied("Only superusers can change groups.")
+        return get_object_or_404(Group, pk=self.kwargs.get("pk"))
+
+
+class UserList(generics.ListCreateAPIView):
+    queryset = User.objects.filter(is_superuser=False)
+    serializer_class = UserSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(is_superuser=False)
 
 
 class ExperimentList(generics.ListCreateAPIView):

@@ -23,9 +23,18 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
+    teaching_assistant = UserSerializer(read_only=True)
+
     class Meta:
         model = Group
         fields = "__all__"
+        read_only_fields = ["teaching_assistant"]
+
+
+class GroupCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ["name", "description"]
 
 
 class DepartmentSerializer(serializers.ModelSerializer):
