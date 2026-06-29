@@ -24,7 +24,9 @@ class Group(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
-    teaching_assistant = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    teaching_assistant = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -55,6 +57,27 @@ class GroupScopedManager(models.Manager):
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.PROTECT)
+
+    def save(self, *args, **kwargs):
+        old_group_id = None
+        if self.pk:
+            old_group_id = (
+                UserProfile.objects.filter(pk=self.pk)
+                .values_list("group_id", flat=True)
+                .first()
+            )
+
+        super().save(*args, **kwargs)
+
+        from api.utils.teaching_assistant import (
+            sync_teaching_assistant_for_user_profile,
+        )
+
+        sync_teaching_assistant_for_user_profile(
+            self,
+            old_group_id=old_group_id,
+            new_group_id=self.group_id,
+        )
 
     def __str__(self):
         return self.user.username
