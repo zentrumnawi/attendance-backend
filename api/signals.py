@@ -17,6 +17,8 @@ def create_final_result_for_new_student(
 
 @receiver(post_save, sender=AttendanceRecord)
 def ensure_lab_day_for_attendance_record(sender, instance: AttendanceRecord, **kwargs):
+    if instance.day_type != AttendanceRecord.DayType.LAB:
+        return
     if instance.student.group_id is None:
         return
 
