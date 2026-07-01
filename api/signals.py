@@ -19,7 +19,7 @@ def create_final_result_for_new_student(
 def ensure_lab_day_for_attendance_record(sender, instance: AttendanceRecord, **kwargs):
     if instance.day_type != AttendanceRecord.DayType.LAB:
         return
-    if instance.student.group_id is None:
+    if instance.student.group_id is None or instance.praktikum_day is None:
         return
 
     LabDay.objects.get_or_create(

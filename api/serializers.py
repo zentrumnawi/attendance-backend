@@ -151,20 +151,29 @@ class AttendanceRecordBulkItemSerializer(serializers.Serializer):
 
 class AttendanceRecordBulkSerializer(serializers.Serializer):
     date = serializers.DateField()
-    praktikum_day = serializers.IntegerField(min_value=1)
     day_type = serializers.ChoiceField(
         choices=AttendanceRecord.DayType.choices,
         default=AttendanceRecord.DayType.LAB,
+    )
+    praktikum_day = serializers.IntegerField(
+        min_value=1, required=False, allow_null=True
     )
     group = serializers.CharField(required=False, allow_null=True)
     records = AttendanceRecordBulkItemSerializer(many=True, allow_empty=False)
 
     def validate(self, attrs):
         day_type = attrs.get("day_type", AttendanceRecord.DayType.LAB)
-        if day_type == AttendanceRecord.DayType.LAB and not attrs.get("group"):
-            raise serializers.ValidationError(
-                {"group": "This field is required for lab attendance."}
-            )
+        if day_type == AttendanceRecord.DayType.LAB:
+            if not attrs.get("group"):
+                raise serializers.ValidationError(
+                    {"group": "This field is required for lab attendance."}
+                )
+            if attrs.get("praktikum_day") is None:
+                raise serializers.ValidationError(
+                    {"praktikum_day": "This field is required for lab attendance."}
+                )
+        else:
+            attrs["praktikum_day"] = None
         return attrs
 
 

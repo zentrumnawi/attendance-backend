@@ -29,7 +29,7 @@ urlpatterns = [
         name="attendance-record-bulk-delete",
     ),
     path(
-        "students/<uuid:student_pk>/attendance-records/<int:praktikum_day>/",
+        "students/<uuid:student_pk>/attendance-records/<str:session_date>/",
         views.AttendanceRecordDetail.as_view(),
         name="student-praktikum-attendance-record-detail",
     ),

@@ -129,23 +129,23 @@ class AttendanceRecordDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         student_pk = self.kwargs.get("student_pk")
-        praktikum_day = self.kwargs.get("praktikum_day")
+        session_date = parse_date(self.kwargs.get("session_date"))
         day_type = self.request.query_params.get(
             "day_type", AttendanceRecord.DayType.LAB
         )
 
         base_queryset = AttendanceRecord.objects.for_user(self.request.user)
 
-        if student_pk and praktikum_day is not None:
+        if student_pk and session_date is not None:
             obj = get_object_or_404(
                 base_queryset,
                 student__pk=student_pk,
-                praktikum_day=praktikum_day,
+                date=session_date,
                 day_type=day_type,
             )
 
         else:
-            raise Http404("Please provide 'student_pk' and 'praktikum_day'.")
+            raise Http404("Please provide 'student_pk' and a valid session date.")
 
         return obj
 
@@ -193,6 +193,9 @@ class AttendanceRecordBulkCreateView(APIView):
         group = None
         if day_type == AttendanceRecord.DayType.LAB:
             group = self._resolve_group(request.user, data["group"])
+            self._validate_students_in_group(group, student_ids)
+        else:
+            self._validate_students_for_user(request.user, student_ids)
 
         saved_records = []
         with transaction.atomic():
@@ -206,12 +209,12 @@ class AttendanceRecordBulkCreateView(APIView):
             for item in data["records"]:
                 record, _created = AttendanceRecord.objects.update_or_create(
                     student_id=item["student_id"],
-                    praktikum_day=data["praktikum_day"],
+                    date=data["date"],
                     day_type=day_type,
                     defaults={
-                        "date": data["date"],
                         "is_present": item["is_present"],
                         "comment": item.get("comment"),
+                        "praktikum_day": data.get("praktikum_day"),
                     },
                 )
                 saved_records.append(record)
@@ -244,6 +247,24 @@ class AttendanceRecordBulkCreateView(APIView):
             raise PermissionDenied("You can only manage attendance for your own group.")
         return group
 
+    def _validate_students_in_group(self, group: Group, student_ids):
+        in_group_count = Student.objects.filter(
+            pk__in=student_ids, group=group
+        ).count()
+        if in_group_count != len(student_ids):
+            raise ValidationError(
+                {
+                    "records": "One or more students do not belong to the specified group."
+                }
+            )
+
+    def _validate_students_for_user(self, user, student_ids):
+        allowed_ids = _allowed_student_ids(user, student_ids)
+        if len(allowed_ids) != len(student_ids):
+            raise ValidationError(
+                {"records": "One or more students are outside your group."}
+            )
+
 
 class AttendanceRecordBulkDeleteView(APIView):
     """Delete all attendance records for a roll-call session"""
@@ -268,9 +289,7 @@ class AttendanceRecordBulkDeleteView(APIView):
                 date=parsed_date,
                 day_type=AttendanceRecord.DayType.LECTURE,
             )
-            praktikum_day = request.query_params.get("praktikum_day")
-            if praktikum_day is not None:
-                queryset = queryset.filter(praktikum_day=int(praktikum_day))
+            queryset = self._scope_to_user_group(request.user, queryset)
             deleted_count, _ = queryset.delete()
             return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
 
@@ -313,6 +332,15 @@ class AttendanceRecordBulkDeleteView(APIView):
                 return Group.objects.get(pk=group_param)
             except (Group.DoesNotExist, ValueError, ValidationError):
                 raise ValidationError({"group": "Group not found."})
+
+    def _scope_to_user_group(self, user, queryset):
+        if user.is_superuser:
+            return queryset
+        try:
+            user_group = user.userprofile.group
+        except UserProfile.DoesNotExist:
+            raise PermissionDenied("You do not have permission to delete attendance.")
+        return queryset.filter(student__group=user_group)
 
 
 class GroupList(generics.ListCreateAPIView):
