@@ -68,6 +68,17 @@ def _allowed_student_ids(user, student_ids):
     )
 
 
+def _resolve_group_param(user, group_param: str) -> Group:
+    try:
+        group = Group.objects.get(name=group_param)
+    except Group.DoesNotExist:
+        try:
+            group = Group.objects.get(pk=group_param)
+        except (Group.DoesNotExist, ValueError, ValidationError):
+            raise ValidationError({"group": "Group not found."})
+    return group
+
+
 def _lab_partnership_response_for_group(group):
     students = Student.objects.filter(group=group).order_by("last_name", "first_name")
     return [
@@ -108,6 +119,7 @@ class AttendanceRecordList(generics.ListCreateAPIView):
         date_param = self.request.query_params.get("date")
         student_pk = self.request.query_params.get("student_pk")
         day_type = self.request.query_params.get("day_type")
+        group_param = self.request.query_params.get("group")
 
         if date_param:
             parsed_date = parse_date(date_param)
@@ -119,6 +131,10 @@ class AttendanceRecordList(generics.ListCreateAPIView):
 
         if day_type:
             queryset = queryset.filter(day_type=day_type)
+
+        if group_param:
+            group = _resolve_group_param(self.request.user, group_param)
+            queryset = queryset.filter(student__group=group)
 
         return queryset
 
