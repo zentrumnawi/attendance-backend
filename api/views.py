@@ -107,6 +107,7 @@ class AttendanceRecordList(generics.ListCreateAPIView):
         queryset = AttendanceRecord.objects.for_user(self.request.user)
         date_param = self.request.query_params.get("date")
         student_pk = self.request.query_params.get("student_pk")
+        day_type = self.request.query_params.get("day_type")
 
         if date_param:
             parsed_date = parse_date(date_param)
@@ -115,6 +116,9 @@ class AttendanceRecordList(generics.ListCreateAPIView):
 
         if student_pk:
             queryset = queryset.filter(student__pk=student_pk)
+
+        if day_type:
+            queryset = queryset.filter(day_type=day_type)
 
         return queryset
 
@@ -126,12 +130,18 @@ class AttendanceRecordDetail(generics.RetrieveUpdateDestroyAPIView):
     def get_object(self):
         student_pk = self.kwargs.get("student_pk")
         praktikum_day = self.kwargs.get("praktikum_day")
+        day_type = self.request.query_params.get(
+            "day_type", AttendanceRecord.DayType.LAB
+        )
 
         base_queryset = AttendanceRecord.objects.for_user(self.request.user)
 
         if student_pk and praktikum_day is not None:
             obj = get_object_or_404(
-                base_queryset, student__pk=student_pk, praktikum_day=praktikum_day
+                base_queryset,
+                student__pk=student_pk,
+                praktikum_day=praktikum_day,
+                day_type=day_type,
             )
 
         else:
@@ -173,19 +183,22 @@ class AttendanceRecordBulkCreateView(APIView):
         serializer = AttendanceRecordBulkSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        day_type = data.get("day_type", AttendanceRecord.DayType.LAB)
 
         # check for duplicate student_id in records
         student_ids = [item["student_id"] for item in data["records"]]
         if len(student_ids) != len(set(student_ids)):
             raise ValidationError({"records": "Duplicate student_id in records."})
 
+        group = None
+        if day_type == AttendanceRecord.DayType.LAB:
+            group = self._resolve_group(request.user, data["group"])
+
         saved_records = []
         with transaction.atomic():
-            # Make sure a lab day entry is created (additionally to attendance records)
-            group_id = Group.objects.only("id").get(name=data["group"]).id
-            if group_id is not None:
+            if day_type == AttendanceRecord.DayType.LAB:
                 LabDay.objects.get_or_create(
-                    group_id=group_id,
+                    group=group,
                     date=data["date"],
                     defaults={"praktikum_day": data["praktikum_day"]},
                 )
@@ -194,6 +207,7 @@ class AttendanceRecordBulkCreateView(APIView):
                 record, _created = AttendanceRecord.objects.update_or_create(
                     student_id=item["student_id"],
                     praktikum_day=data["praktikum_day"],
+                    day_type=day_type,
                     defaults={
                         "date": data["date"],
                         "is_present": item["is_present"],
@@ -207,9 +221,32 @@ class AttendanceRecordBulkCreateView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+    def _get_group_by_param(self, group_param: str) -> Group:
+        try:
+            return Group.objects.get(name=group_param)
+        except Group.DoesNotExist:
+            try:
+                return Group.objects.get(pk=group_param)
+            except (Group.DoesNotExist, ValueError, ValidationError):
+                raise ValidationError({"group": "Group not found."})
+
+    def _resolve_group(self, user, group_param: str) -> Group:
+        group = self._get_group_by_param(group_param)
+        if user.is_superuser:
+            return group
+
+        try:
+            user_group = user.userprofile.group
+        except UserProfile.DoesNotExist:
+            raise PermissionDenied("You do not have permission to manage attendance.")
+
+        if group.pk != user_group.pk:
+            raise PermissionDenied("You can only manage attendance for your own group.")
+        return group
+
 
 class AttendanceRecordBulkDeleteView(APIView):
-    """Delete all attendance records for a group on a given date"""
+    """Delete all attendance records for a roll-call session"""
 
     permission_classes = [IsAuthenticated]
 
@@ -222,6 +259,21 @@ class AttendanceRecordBulkDeleteView(APIView):
         if parsed_date is None:
             raise ValidationError({"date": "Enter a valid date (YYYY-MM-DD)."})
 
+        day_type = request.query_params.get("day_type", AttendanceRecord.DayType.LAB)
+        if day_type not in AttendanceRecord.DayType.values:
+            raise ValidationError({"day_type": "Enter LAB or LECTURE."})
+
+        if day_type == AttendanceRecord.DayType.LECTURE:
+            queryset = AttendanceRecord.objects.filter(
+                date=parsed_date,
+                day_type=AttendanceRecord.DayType.LECTURE,
+            )
+            praktikum_day = request.query_params.get("praktikum_day")
+            if praktikum_day is not None:
+                queryset = queryset.filter(praktikum_day=int(praktikum_day))
+            deleted_count, _ = queryset.delete()
+            return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
+
         group_param = request.query_params.get("group")
         if not group_param:
             raise ValidationError({"group": "This query parameter is required."})
@@ -231,10 +283,10 @@ class AttendanceRecordBulkDeleteView(APIView):
         queryset = AttendanceRecord.objects.filter(
             date=parsed_date,
             student__group=group,
+            day_type=AttendanceRecord.DayType.LAB,
         )
         deleted_count, _ = queryset.delete()
 
-        # delete lab day entry
         LabDay.objects.filter(group=group, date=parsed_date).delete()
 
         return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
@@ -257,7 +309,10 @@ class AttendanceRecordBulkDeleteView(APIView):
         try:
             return Group.objects.get(name=group_param)
         except Group.DoesNotExist:
-            raise ValidationError({"group": "Group not found."})
+            try:
+                return Group.objects.get(pk=group_param)
+            except (Group.DoesNotExist, ValueError, ValidationError):
+                raise ValidationError({"group": "Group not found."})
 
 
 class GroupList(generics.ListCreateAPIView):

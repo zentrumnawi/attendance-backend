@@ -1,6 +1,5 @@
 from django.db import models
-
-# Create your models here.
+from django.db.models import Q
 # api/models.py
 
 # api/models.py
@@ -209,6 +208,10 @@ class Exercise(models.Model):
 class AttendanceRecord(models.Model):
     """Track attendance for each student on each praktikum day"""
 
+    class DayType(models.TextChoices):
+        LAB = "LAB", "Lab"
+        LECTURE = "LECTURE", "Lecture"
+
     objects = GroupRestrictedManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -219,17 +222,28 @@ class AttendanceRecord(models.Model):
     praktikum_day = models.IntegerField(
         help_text="Day number of the praktikum (1, 2, 3, ...)"
     )
+    day_type = models.CharField(
+        max_length=10,
+        choices=DayType.choices,
+        default=DayType.LAB,
+    )
     is_present = models.BooleanField(default=False)
     comment = models.TextField(blank=True, null=True)
 
     class Meta:
         ordering = ["-date"]
-        unique_together = ["student", "praktikum_day"]  # One record per student per day
+        unique_together = ["student", "praktikum_day", "day_type"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(day_type__in=["LAB", "LECTURE"]),
+                name="attendance_day_type_valid",
+            ),
+        ]
 
     def __str__(self):
         status = "1" if self.is_present else "0"
 
-        return f"{self.student.full_name()} - Day {self.praktikum_day}: {status}"
+        return f"{self.student.full_name()} - Day {self.praktikum_day} ({self.day_type}): {status}"
 
 
 class LabDay(models.Model):
@@ -353,8 +367,20 @@ class FinalResult(models.Model):
         return self.student.exercise_completions.filter(completed=True).count()
 
     @property
+    def lab_attendance_count(self) -> int:
+        return self.student.attendance_records.filter(
+            is_present=True, day_type=AttendanceRecord.DayType.LAB
+        ).count()
+
+    @property
+    def lecture_attendance_count(self) -> int:
+        return self.student.attendance_records.filter(
+            is_present=True, day_type=AttendanceRecord.DayType.LECTURE
+        ).count()
+
+    @property
     def attendance_count(self) -> int:
-        return self.student.attendance_records.filter(is_present=True).count()
+        return self.lab_attendance_count + self.lecture_attendance_count
 
     def __str__(self):
         return f"{self.student.full_name()} - {self.status}"
