@@ -117,8 +117,8 @@ class ExerciseAdmin(admin.ModelAdmin):
 
 
 class AttendanceRecordAdmin(admin.ModelAdmin):
-    list_display = ["student", "praktikum_day", "date", "is_present"]
-    list_filter = ["is_present", "praktikum_day"]
+    list_display = ["student", "praktikum_day", "day_type", "date", "is_present"]
+    list_filter = ["is_present", "day_type", "praktikum_day"]
     search_fields = ["student__first_name", "student__last_name"]
     date_hierarchy = "date"
 
@@ -170,7 +170,13 @@ class FinalResultAdmin(admin.ModelAdmin):
     ]
     list_filter = ["status"]
     search_fields = ["student__first_name", "student__last_name"]
-    readonly_fields = ["papers_completed", "exercises_completed", "attendance_count"]
+    readonly_fields = [
+        "papers_completed",
+        "exercises_completed",
+        "lab_attendance_count",
+        "lecture_attendance_count",
+        "attendance_count",
+    ]
 
     def get_queryset(self, request):
         return self.model.objects.for_user(request.user)
