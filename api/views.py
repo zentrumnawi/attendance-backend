@@ -264,9 +264,7 @@ class AttendanceRecordBulkCreateView(APIView):
         return group
 
     def _validate_students_in_group(self, group: Group, student_ids):
-        in_group_count = Student.objects.filter(
-            pk__in=student_ids, group=group
-        ).count()
+        in_group_count = Student.objects.filter(pk__in=student_ids, group=group).count()
         if in_group_count != len(student_ids):
             raise ValidationError(
                 {
