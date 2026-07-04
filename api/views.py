@@ -50,6 +50,7 @@ from .serializers import (
     LabPartnerDetailSerializer,
     UserSerializer,
     GroupCreateSerializer,
+    StudentUpdateSerializer,
 )
 
 from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
@@ -101,6 +102,11 @@ class StudentList(generics.ListCreateAPIView):
 class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
+
+    def get_serializer_class(self):
+        if self.request.method in ("PUT", "PATCH"):
+            return StudentUpdateSerializer
+        return StudentSerializer
 
     def get_object(self):
         return get_object_or_404(
