@@ -98,6 +98,15 @@ class StudentList(generics.ListCreateAPIView):
     def get_queryset(self):
         return Student.objects.for_user(self.request.user)
 
+    def create(self, request, *args, **kwargs):
+        serializer = StudentUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        student = serializer.save()
+        return Response(
+            StudentSerializer(student).data,
+            status=status.HTTP_201_CREATED,
+        )
+
 
 class StudentDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Student.objects.all()
