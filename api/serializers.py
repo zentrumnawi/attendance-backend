@@ -73,6 +73,21 @@ class StudentSerializer(serializers.ModelSerializer):
         read_only_fields = ["lab_partner"]
 
 
+class StudentUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Student
+        fields = [
+            "first_name",
+            "last_name",
+            "email",
+            "matriculation_number",
+            "course",
+            "semester",
+            "group",
+            "department",
+        ]
+
+
 class MinimalStudentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Student
