@@ -358,8 +358,8 @@ class FinalResult(models.Model):
         max_length=10, choices=Status.choices, default=Status.INCOMPLETE
     )
 
-    # If failed, reason can be stored
-    failure_reason = models.TextField(blank=True)
+    # comments, special needs, failure reason, etc.
+    comment = models.TextField(blank=True)
 
     # Grading info
     graded_by = models.ForeignKey(
