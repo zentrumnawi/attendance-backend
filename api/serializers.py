@@ -256,6 +256,7 @@ class FinalResultSerializer(serializers.ModelSerializer):
     graded_by = UserSerializer(read_only=True)
     papers_completed = serializers.IntegerField(read_only=True)
     exercises_completed = serializers.IntegerField(read_only=True)
+    experiments_completed = serializers.IntegerField(read_only=True)
     lab_attendance_count = serializers.IntegerField(read_only=True)
     lecture_attendance_count = serializers.IntegerField(read_only=True)
     attendance_count = serializers.IntegerField(read_only=True)

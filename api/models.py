@@ -394,5 +394,9 @@ class FinalResult(models.Model):
     def attendance_count(self) -> int:
         return self.lab_attendance_count + self.lecture_attendance_count
 
+    @property
+    def experiments_completed(self) -> int:
+        return self.student.experiment_completions.filter(completed=True).count()
+
     def __str__(self):
         return f"{self.student.full_name()} - {self.status}"
