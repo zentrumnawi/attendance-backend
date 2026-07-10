@@ -59,6 +59,16 @@ urlpatterns = [
         name="group-detail",
     ),
     path(
+        "exercises/",
+        views.ExerciseList.as_view(),
+        name="exercise-list",
+    ),
+    path(
+        "exercises/<uuid:pk>/",
+        views.ExerciseDetail.as_view(),
+        name="exercise-detail",
+    ),
+    path(
         "users/",
         views.UserList.as_view(),
         name="user-list",

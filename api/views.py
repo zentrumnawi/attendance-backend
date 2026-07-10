@@ -404,6 +404,24 @@ class GroupDetail(generics.RetrieveUpdateDestroyAPIView):
         return get_object_or_404(Group, pk=self.kwargs.get("pk"))
 
 
+class ExerciseList(generics.ListCreateAPIView):
+    queryset = Exercise.objects.all()
+    serializer_class = ExerciseSerializer
+
+    def get_queryset(self):
+        return Exercise.objects.all()
+
+
+class ExerciseDetail(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Exercise.objects.all()
+    serializer_class = ExerciseSerializer
+
+    def get_object(self):
+        if not self.request.user.is_superuser:
+            raise PermissionDenied("Only superusers can change exercises.")
+        return get_object_or_404(Exercise, pk=self.kwargs.get("pk"))
+
+
 class UserList(generics.ListCreateAPIView):
     queryset = User.objects.filter(is_superuser=False)
     serializer_class = UserSerializer
