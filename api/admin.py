@@ -173,6 +173,7 @@ class FinalResultAdmin(admin.ModelAdmin):
     readonly_fields = [
         "papers_completed",
         "exercises_completed",
+        "experiments_completed",
         "lab_attendance_count",
         "lecture_attendance_count",
         "attendance_count",

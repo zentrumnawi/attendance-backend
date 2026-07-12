@@ -358,8 +358,8 @@ class FinalResult(models.Model):
         max_length=10, choices=Status.choices, default=Status.INCOMPLETE
     )
 
-    # If failed, reason can be stored
-    failure_reason = models.TextField(blank=True)
+    # comments, special needs, failure reason, etc.
+    comment = models.TextField(blank=True)
 
     # Grading info
     graded_by = models.ForeignKey(
@@ -393,6 +393,10 @@ class FinalResult(models.Model):
     @property
     def attendance_count(self) -> int:
         return self.lab_attendance_count + self.lecture_attendance_count
+
+    @property
+    def experiments_completed(self) -> int:
+        return self.student.experiment_completions.filter(completed=True).count()
 
     def __str__(self):
         return f"{self.student.full_name()} - {self.status}"
