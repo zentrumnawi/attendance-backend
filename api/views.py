@@ -231,10 +231,10 @@ class AttendanceRecordBulkCreateView(APIView):
         saved_records = []
         with transaction.atomic():
             if day_type == AttendanceRecord.DayType.LAB:
-                LabDay.objects.get_or_create(
+                LabDay.objects.update_or_create(
                     group=group,
-                    date=data["date"],
-                    defaults={"praktikum_day": data["praktikum_day"]},
+                    praktikum_day=data["praktikum_day"],
+                    defaults={"date": data["date"]},
                 )
 
             for item in data["records"]:

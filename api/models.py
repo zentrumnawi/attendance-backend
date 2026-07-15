@@ -259,20 +259,22 @@ class AttendanceRecord(models.Model):
 
 
 class LabDay(models.Model):
-    """A roll-call session for a group on a calendar date"""
+    """A roll-call session for a group on a curriculum lab day"""
 
     objects = GroupScopedManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="lab_days")
-    date = models.DateField()
+    date = models.DateField(
+        help_text="Calendar date when this lab day was held",
+    )
     praktikum_day = models.IntegerField(
         help_text="Day number of the praktikum (1, 2, 3, ...)"
     )
 
     class Meta:
         ordering = ["-date"]
-        unique_together = ["group", "date"]
+        unique_together = ["group", "praktikum_day"]
 
     def __str__(self):
         return f"{self.group} - {self.date} (day {self.praktikum_day})"
