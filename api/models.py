@@ -234,8 +234,17 @@ class AttendanceRecord(models.Model):
 
     class Meta:
         ordering = ["-date"]
-        unique_together = ["student", "date", "day_type"]
         constraints = [
+            models.UniqueConstraint(
+                fields=["student", "praktikum_day"],
+                condition=models.Q(day_type="LAB"),
+                name="unique_lab_attendance_per_student_day",
+            ),
+            models.UniqueConstraint(
+                fields=["student", "date"],
+                condition=models.Q(day_type="LECTURE"),
+                name="unique_lecture_attendance_per_student_date",
+            ),
             models.CheckConstraint(
                 condition=models.Q(day_type__in=["LAB", "LECTURE"]),
                 name="attendance_day_type_valid",
