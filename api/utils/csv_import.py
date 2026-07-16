@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict, Any
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import transaction
-from ..models import Student, Group
+from ..models import Student, Group, FinalResult
 
 
 class CSVRowValidator:

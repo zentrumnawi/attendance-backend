@@ -152,9 +152,7 @@ class AttendanceRecordList(generics.ListCreateAPIView):
             try:
                 queryset = queryset.filter(praktikum_day=int(praktikum_day_param))
             except (TypeError, ValueError):
-                raise ValidationError(
-                    {"praktikum_day": "Enter a valid integer."}
-                )
+                raise ValidationError({"praktikum_day": "Enter a valid integer."})
 
         if group_param:
             group = _resolve_group_param(self.request.user, group_param)
