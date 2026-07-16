@@ -22,8 +22,8 @@ def ensure_lab_day_for_attendance_record(sender, instance: AttendanceRecord, **k
     if instance.student.group_id is None or instance.praktikum_day is None:
         return
 
-    LabDay.objects.get_or_create(
+    LabDay.objects.update_or_create(
         group_id=instance.student.group_id,
-        date=instance.date,
-        defaults={"praktikum_day": instance.praktikum_day},
+        praktikum_day=instance.praktikum_day,
+        defaults={"date": instance.date},
     )

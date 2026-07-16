@@ -234,8 +234,17 @@ class AttendanceRecord(models.Model):
 
     class Meta:
         ordering = ["-date"]
-        unique_together = ["student", "date", "day_type"]
         constraints = [
+            models.UniqueConstraint(
+                fields=["student", "praktikum_day"],
+                condition=models.Q(day_type="LAB"),
+                name="unique_lab_attendance_per_student_day",
+            ),
+            models.UniqueConstraint(
+                fields=["student", "date"],
+                condition=models.Q(day_type="LECTURE"),
+                name="unique_lecture_attendance_per_student_date",
+            ),
             models.CheckConstraint(
                 condition=models.Q(day_type__in=["LAB", "LECTURE"]),
                 name="attendance_day_type_valid",
@@ -259,20 +268,22 @@ class AttendanceRecord(models.Model):
 
 
 class LabDay(models.Model):
-    """A roll-call session for a group on a calendar date"""
+    """A roll-call session for a group on a curriculum lab day"""
 
     objects = GroupScopedManager()
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name="lab_days")
-    date = models.DateField()
+    date = models.DateField(
+        help_text="Calendar date when this lab day was held",
+    )
     praktikum_day = models.IntegerField(
         help_text="Day number of the praktikum (1, 2, 3, ...)"
     )
 
     class Meta:
         ordering = ["-date"]
-        unique_together = ["group", "date"]
+        unique_together = ["group", "praktikum_day"]
 
     def __str__(self):
         return f"{self.group} - {self.date} (day {self.praktikum_day})"

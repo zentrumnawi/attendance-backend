@@ -135,6 +135,7 @@ class AttendanceRecordList(generics.ListCreateAPIView):
         student_pk = self.request.query_params.get("student_pk")
         day_type = self.request.query_params.get("day_type")
         group_param = self.request.query_params.get("group")
+        praktikum_day_param = self.request.query_params.get("praktikum_day")
 
         if date_param:
             parsed_date = parse_date(date_param)
@@ -146,6 +147,12 @@ class AttendanceRecordList(generics.ListCreateAPIView):
 
         if day_type:
             queryset = queryset.filter(day_type=day_type)
+
+        if praktikum_day_param is not None:
+            try:
+                queryset = queryset.filter(praktikum_day=int(praktikum_day_param))
+            except (TypeError, ValueError):
+                raise ValidationError({"praktikum_day": "Enter a valid integer."})
 
         if group_param:
             group = _resolve_group_param(self.request.user, group_param)
@@ -160,25 +167,29 @@ class AttendanceRecordDetail(generics.RetrieveUpdateDestroyAPIView):
 
     def get_object(self):
         student_pk = self.kwargs.get("student_pk")
-        session_date = parse_date(self.kwargs.get("session_date"))
-        day_type = self.request.query_params.get(
-            "day_type", AttendanceRecord.DayType.LAB
-        )
-
         base_queryset = AttendanceRecord.objects.for_user(self.request.user)
 
+        praktikum_day = self.kwargs.get("praktikum_day")
+        if praktikum_day is not None:
+            return get_object_or_404(
+                base_queryset,
+                student__pk=student_pk,
+                praktikum_day=praktikum_day,
+                day_type=AttendanceRecord.DayType.LAB,
+            )
+
+        session_date = parse_date(self.kwargs.get("session_date"))
         if student_pk and session_date is not None:
-            obj = get_object_or_404(
+            return get_object_or_404(
                 base_queryset,
                 student__pk=student_pk,
                 date=session_date,
-                day_type=day_type,
+                day_type=AttendanceRecord.DayType.LECTURE,
             )
 
-        else:
-            raise Http404("Please provide 'student_pk' and a valid session date.")
-
-        return obj
+        raise Http404(
+            "Provide student_pk with praktikum_day (lab) or a valid session date (lecture)."
+        )
 
 
 class AttendanceCalendarView(APIView):
@@ -231,23 +242,35 @@ class AttendanceRecordBulkCreateView(APIView):
         saved_records = []
         with transaction.atomic():
             if day_type == AttendanceRecord.DayType.LAB:
-                LabDay.objects.get_or_create(
+                LabDay.objects.update_or_create(
                     group=group,
-                    date=data["date"],
-                    defaults={"praktikum_day": data["praktikum_day"]},
+                    praktikum_day=data["praktikum_day"],
+                    defaults={"date": data["date"]},
                 )
 
             for item in data["records"]:
-                record, _created = AttendanceRecord.objects.update_or_create(
-                    student_id=item["student_id"],
-                    date=data["date"],
-                    day_type=day_type,
-                    defaults={
-                        "is_present": item["is_present"],
-                        "comment": item.get("comment"),
-                        "praktikum_day": data.get("praktikum_day"),
-                    },
-                )
+                if day_type == AttendanceRecord.DayType.LAB:
+                    record, _created = AttendanceRecord.objects.update_or_create(
+                        student_id=item["student_id"],
+                        praktikum_day=data["praktikum_day"],
+                        day_type=AttendanceRecord.DayType.LAB,
+                        defaults={
+                            "date": data["date"],
+                            "is_present": item["is_present"],
+                            "comment": item.get("comment"),
+                        },
+                    )
+                else:
+                    record, _created = AttendanceRecord.objects.update_or_create(
+                        student_id=item["student_id"],
+                        date=data["date"],
+                        day_type=AttendanceRecord.DayType.LECTURE,
+                        defaults={
+                            "is_present": item["is_present"],
+                            "comment": item.get("comment"),
+                            "praktikum_day": None,
+                        },
+                    )
                 saved_records.append(record)
 
         return Response(
@@ -301,19 +324,19 @@ class AttendanceRecordBulkDeleteView(APIView):
     permission_classes = [IsAuthenticated]
 
     def delete(self, request):
-        date_param = request.query_params.get("date")
-        if not date_param:
-            raise ValidationError({"date": "This query parameter is required."})
-
-        parsed_date = parse_date(date_param)
-        if parsed_date is None:
-            raise ValidationError({"date": "Enter a valid date (YYYY-MM-DD)."})
-
         day_type = request.query_params.get("day_type", AttendanceRecord.DayType.LAB)
         if day_type not in AttendanceRecord.DayType.values:
             raise ValidationError({"day_type": "Enter LAB or LECTURE."})
 
         if day_type == AttendanceRecord.DayType.LECTURE:
+            date_param = request.query_params.get("date")
+            if not date_param:
+                raise ValidationError({"date": "This query parameter is required."})
+
+            parsed_date = parse_date(date_param)
+            if parsed_date is None:
+                raise ValidationError({"date": "Enter a valid date (YYYY-MM-DD)."})
+
             queryset = AttendanceRecord.objects.filter(
                 date=parsed_date,
                 day_type=AttendanceRecord.DayType.LECTURE,
@@ -322,6 +345,16 @@ class AttendanceRecordBulkDeleteView(APIView):
             deleted_count, _ = queryset.delete()
             return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
 
+        praktikum_day_param = request.query_params.get("praktikum_day")
+        if not praktikum_day_param:
+            raise ValidationError(
+                {"praktikum_day": "This query parameter is required."}
+            )
+        try:
+            praktikum_day = int(praktikum_day_param)
+        except (TypeError, ValueError):
+            raise ValidationError({"praktikum_day": "Enter a valid integer."})
+
         group_param = request.query_params.get("group")
         if not group_param:
             raise ValidationError({"group": "This query parameter is required."})
@@ -329,13 +362,13 @@ class AttendanceRecordBulkDeleteView(APIView):
         group = self._resolve_group(request.user, group_param)
 
         queryset = AttendanceRecord.objects.filter(
-            date=parsed_date,
+            praktikum_day=praktikum_day,
             student__group=group,
             day_type=AttendanceRecord.DayType.LAB,
         )
         deleted_count, _ = queryset.delete()
 
-        LabDay.objects.filter(group=group, date=parsed_date).delete()
+        LabDay.objects.filter(group=group, praktikum_day=praktikum_day).delete()
 
         return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
 
