@@ -444,6 +444,12 @@ class ExerciseList(generics.ListCreateAPIView):
     def get_queryset(self):
         return Exercise.objects.all()
 
+class DepartmentList(generics.ListCreateAPIView):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+
+    def get_queryset(self):
+        return Department.objects.all()
 
 class ExerciseDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Exercise.objects.all()
