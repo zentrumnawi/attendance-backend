@@ -74,6 +74,11 @@ urlpatterns = [
         name="exercise-detail",
     ),
     path(
+        "departments/",
+        views.DepartmentList.as_view(),
+        name="department-list",
+    ),
+    path(
         "users/",
         views.UserList.as_view(),
         name="user-list",
