@@ -503,8 +503,6 @@ class ExperimentCompletionPerStudent(APIView):
             raise ValidationError({"lab_day": "This query parameter is required."})
 
         experiments = Experiment.objects.filter(lab_day=lab_day)
-        if not experiments:
-            raise ValidationError({"lab_day": "This lab day does not exist."})
 
         experiment_completions = []
 
@@ -533,7 +531,7 @@ class ExerciseCompletionStatus(APIView):
 
         exercises = Exercise.objects.filter(lab_day=lab_day)
         if not exercises:
-            raise ValidationError({"lab_day": "This lab day does not exist."})
+            return Response([], status=status.HTTP_200_OK)
 
         student_ids = ExerciseCompletion.objects.filter(
             completed=True, exercise__in=exercises
@@ -684,7 +682,7 @@ class ExerciseCompletionList(generics.ListCreateAPIView):
                     exercise__pk=exercise_id
                 )
             except Exercise.DoesNotExist:
-                raise Http404("Exercise not found")
+                return Response([], status=status.HTTP_200_OK)
         else:
             return ExerciseCompletion.objects.for_user(self.request.user)
 
