@@ -192,6 +192,16 @@ class AttendanceRecordBulkSerializer(serializers.Serializer):
         return attrs
 
 
+class AttendanceSessionPatchSerializer(serializers.Serializer):
+    """Move a lab session from one praktikum_day to another (delete + create)."""
+
+    old_praktikum_day = serializers.IntegerField(min_value=1)
+    date = serializers.DateField()
+    praktikum_day = serializers.IntegerField(min_value=1)
+    group = serializers.CharField()
+    records = AttendanceRecordBulkItemSerializer(many=True, allow_empty=False)
+
+
 class PaperSubmissionBulkItemSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     submitted = serializers.BooleanField()

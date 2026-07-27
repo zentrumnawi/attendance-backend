@@ -32,6 +32,7 @@ from .serializers import (
     AttendanceRecordSerializer,
     AttendanceRecordBulkSerializer,
     AttendanceRecordBulkItemSerializer,
+    AttendanceSessionPatchSerializer,
     PaperSubmissionSerializer,
     PaperSubmissionBulkSerializer,
     MinimalStudentSerializer,
@@ -403,6 +404,78 @@ class AttendanceRecordBulkDeleteView(APIView):
         except UserProfile.DoesNotExist:
             raise PermissionDenied("You do not have permission to delete attendance.")
         return queryset.filter(student__group=user_group)
+
+
+class AttendancePatchSessionView(APIView):
+    """Move a lab session to a new praktikum_day (bulk delete + bulk create)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        serializer = AttendanceSessionPatchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        old_day = data["old_praktikum_day"]
+        new_day = data["praktikum_day"]
+        group = Group.objects.get(name=data["group"])
+        student_ids = [item["student_id"] for item in data["records"]]
+        if len(student_ids) != len(set(student_ids)):
+            raise ValidationError({"records": "Duplicate student_id in records."})
+
+        old_records = AttendanceRecord.objects.filter(
+            praktikum_day=old_day,
+            student__group=group,
+            day_type=AttendanceRecord.DayType.LAB,
+        )
+        old_lab_day_exists = LabDay.objects.filter(
+            group=group, praktikum_day=old_day
+        ).exists()
+        if not old_records.exists() and not old_lab_day_exists:
+            raise ValidationError(
+                {"old_praktikum_day": "No session found for this group and lab day."}
+            )
+
+        if old_day != new_day and (
+            LabDay.objects.filter(group=group, praktikum_day=new_day).exists()
+            or AttendanceRecord.objects.filter(
+                praktikum_day=new_day,
+                student__group=group,
+                day_type=AttendanceRecord.DayType.LAB,
+            ).exists()
+        ):
+            raise ValidationError(
+                {"praktikum_day": "A session already exists for this lab day."}
+            )
+
+        with transaction.atomic():
+            old_records.delete()
+            LabDay.objects.filter(group=group, praktikum_day=old_day).delete()
+
+            LabDay.objects.update_or_create(
+                group=group,
+                praktikum_day=new_day,
+                defaults={"date": data["date"]},
+            )
+
+            saved_records = []
+            for item in data["records"]:
+                record, _created = AttendanceRecord.objects.update_or_create(
+                    student_id=item["student_id"],
+                    praktikum_day=new_day,
+                    day_type=AttendanceRecord.DayType.LAB,
+                    defaults={
+                        "date": data["date"],
+                        "is_present": item["is_present"],
+                        "comment": item.get("comment"),
+                    },
+                )
+                saved_records.append(record)
+
+        return Response(
+            AttendanceRecordSerializer(saved_records, many=True).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class GroupList(generics.ListCreateAPIView):
