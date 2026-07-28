@@ -138,9 +138,6 @@ class Experiment(models.Model):
     description = models.TextField(blank=True)
     lab_day = models.IntegerField(default=1)
 
-    # Each experiment can have multiple papers
-    requires_paper_submission = models.BooleanField(default=True)
-
     class Meta:
         ordering = ["lab_day"]
 
