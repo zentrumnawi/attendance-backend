@@ -298,6 +298,7 @@ class PaperSubmission(models.Model):
     paper = models.ForeignKey(
         Paper, on_delete=models.CASCADE, related_name="submissions"
     )
+    main_author = models.BooleanField(default=False)
     submitted = models.BooleanField(default=False)
     submission_date = models.DateTimeField(blank=True, null=True)
     necessary_corrections = models.TextField(blank=True, null=True)
