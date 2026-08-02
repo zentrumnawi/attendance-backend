@@ -6,6 +6,7 @@ urlpatterns = [
     path("auth/login/", auth_views.LoginView.as_view(), name="auth-login"),
     path("auth/me/", auth_views.MeView.as_view(), name="auth-me"),
     path("auth/logout/", auth_views.LogoutView.as_view(), name="auth-logout"),
+    path("health/", views.HealthView.as_view(), name="health"),
     path("students/", views.StudentList.as_view(), name="student-list"),
     path("students/<uuid:pk>/", views.StudentDetail.as_view(), name="student-detail"),
     path(
