@@ -381,7 +381,9 @@ class FinalResult(models.Model):
 
     @property
     def papers_completed(self) -> int:
-        return self.student.paper_submissions.filter(submitted=True, main_author=True).count()
+        return self.student.paper_submissions.filter(
+            submitted=True, main_author=True
+        ).count()
 
     @property
     def exercises_completed(self) -> int:
