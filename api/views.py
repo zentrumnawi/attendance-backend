@@ -707,6 +707,7 @@ class PaperSubmissionBulkCreateView(APIView):
                     paper=paper,
                     defaults={
                         "submitted": item["submitted"],
+                        "main_author": item.get("main_author", False),
                         "submission_date": item.get("submission_date"),
                         "necessary_corrections": item.get("necessary_corrections"),
                         "accepted": item.get("accepted", False),

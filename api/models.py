@@ -298,6 +298,7 @@ class PaperSubmission(models.Model):
     paper = models.ForeignKey(
         Paper, on_delete=models.CASCADE, related_name="submissions"
     )
+    main_author = models.BooleanField(default=False)
     submitted = models.BooleanField(default=False)
     submission_date = models.DateTimeField(blank=True, null=True)
     necessary_corrections = models.TextField(blank=True, null=True)
@@ -380,7 +381,9 @@ class FinalResult(models.Model):
 
     @property
     def papers_completed(self) -> int:
-        return self.student.paper_submissions.filter(submitted=True).count()
+        return self.student.paper_submissions.filter(
+            submitted=True, main_author=True
+        ).count()
 
     @property
     def exercises_completed(self) -> int:

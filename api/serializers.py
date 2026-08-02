@@ -205,6 +205,7 @@ class AttendanceSessionPatchSerializer(serializers.Serializer):
 class PaperSubmissionBulkItemSerializer(serializers.Serializer):
     student_id = serializers.UUIDField()
     submitted = serializers.BooleanField()
+    main_author = serializers.BooleanField(required=False, default=False)
     submission_date = serializers.DateTimeField(required=False, allow_null=True)
     necessary_corrections = serializers.CharField(
         required=False, allow_null=True, allow_blank=True
