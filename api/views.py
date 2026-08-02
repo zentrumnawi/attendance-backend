@@ -92,6 +92,15 @@ def _lab_partnership_response_for_group(group):
     ]
 
 
+class HealthView(APIView):
+    """Reachability check for the frontend."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({"ok": True})
+
+
 class StudentList(generics.ListCreateAPIView):
     queryset = Student.objects.all()
     serializer_class = StudentSerializer
