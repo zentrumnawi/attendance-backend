@@ -106,7 +106,12 @@ class StudentList(generics.ListCreateAPIView):
     serializer_class = StudentSerializer
 
     def get_queryset(self):
-        return Student.objects.for_user(self.request.user)
+        queryset = Student.objects.for_user(self.request.user)
+        group_param = self.request.query_params.get("group")
+        if group_param and self.request.user.is_superuser:
+            group = _resolve_group_param(self.request.user, group_param)
+            queryset = queryset.filter(group=group)
+        return queryset
 
     def create(self, request, *args, **kwargs):
         serializer = StudentUpdateSerializer(data=request.data)
@@ -209,6 +214,11 @@ class AttendanceCalendarView(APIView):
 
     def get(self, request):
         queryset = LabDay.objects.for_user(request.user)
+
+        group_param = request.query_params.get("group")
+        if group_param and request.user.is_superuser:
+            group = _resolve_group_param(request.user, group_param)
+            queryset = queryset.filter(group=group)
 
         lab_days = list(queryset.order_by("date"))
 
@@ -580,6 +590,11 @@ class ExperimentCompletionPerStudent(APIView):
     def get(self, request):
         queryset = Student.objects.for_user(request.user)
 
+        group_param = request.query_params.get("group")
+        if group_param and request.user.is_superuser:
+            group = _resolve_group_param(request.user, group_param)
+            queryset = queryset.filter(group=group)
+
         lab_day = request.query_params.get("lab_day")
         if not lab_day:
             raise ValidationError({"lab_day": "This query parameter is required."})
@@ -607,6 +622,11 @@ class ExerciseCompletionStatus(APIView):
     def get(self, request):
         queryset = Student.objects.for_user(request.user)
 
+        group_param = request.query_params.get("group")
+        if group_param and request.user.is_superuser:
+            group = _resolve_group_param(request.user, group_param)
+            queryset = queryset.filter(group=group)
+
         lab_day = request.query_params.get("lab_day")
         if not lab_day:
             raise ValidationError({"lab_day": "This query parameter is required."})
@@ -616,7 +636,7 @@ class ExerciseCompletionStatus(APIView):
             return Response([], status=status.HTTP_200_OK)
 
         student_ids = ExerciseCompletion.objects.filter(
-            completed=True, exercise__in=exercises
+            completed=True, exercise__in=exercises, student__in=queryset
         ).values_list("student__id", flat=True)
 
         return Response(student_ids, status=status.HTTP_200_OK)
@@ -678,11 +698,17 @@ class PaperSubmissionList(generics.ListCreateAPIView):
     serializer_class = PaperSubmissionSerializer
 
     def get_queryset(self):
+        queryset = PaperSubmission.objects.for_user(self.request.user)
+        group_param = self.request.query_params.get("group")
+        if group_param and self.request.user.is_superuser:
+            group = _resolve_group_param(self.request.user, group_param)
+            queryset = queryset.filter(student__group=group)
+
         lab_day = self.request.query_params.get("lab_day")
         if not lab_day:
             raise ValidationError({"lab_day": "This query parameter is required."})
         try:
-            return PaperSubmission.objects.for_user(self.request.user).filter(
+            return queryset.filter(
                 paper__lab_day=lab_day
             )
         except Paper.DoesNotExist:
@@ -758,6 +784,10 @@ class ExerciseCompletionList(generics.ListCreateAPIView):
     serializer_class = ExerciseCompletionSerializer
 
     def get_queryset(self):
+        group_param = self.request.query_params.get("group")
+        if group_param and self.request.user.is_superuser:
+            group = _resolve_group_param(self.request.user, group_param)
+            queryset = queryset.filter(student__group=group)
         exercise_id = self.request.query_params.get("exercise_id")
         if exercise_id:
             try:
