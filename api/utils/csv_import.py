@@ -34,17 +34,54 @@ class CSVRowValidator:
         if self.errors:
             return False, self.errors
 
+        # Check for fields that would identify existing students
+        email = self.row.get("email", "").strip()
+        matriculation_number = self.row.get("matriculation_number", "").strip() or None
+        # Try to find an existing student
+        student = None
+        if email:
+            try:
+                student = Student.objects.get(email=email)
+            except Student.DoesNotExist:
+                pass
+
+        if not student and matriculation_number:
+            try:
+                student = Student.objects.get(matriculation_number=matriculation_number)
+            except Student.DoesNotExist:
+                pass
+        if student:
+            # If student exists, update its fields
+            student.first_name = self.row.get("first_name", "").strip()
+            student.last_name = self.row.get("last_name", "").strip()
+            student.group = group
+            student.email = email
+            student.matriculation_number = matriculation_number
+
+            try:
+                student.full_clean()
+                student.save()
+                return True, {"action": "updated", "student_id": student.id}
+            except ValidationError as e:
+                # Handle validation errors during update
+                if hasattr(e, "error_dict"):
+                    for field, field_errors in e.error_dict.items():
+                        self.errors[field] = str(field_errors[0])
+                else:
+                    self.errors["__all__"] = str(e)
+                return False, self.errors
+
+        # If no existing student found, create a new one (but don't save yet)
         try:
-            student = Student(
+            new_student = Student(
                 first_name=self.row.get("first_name", "").strip(),
                 last_name=self.row.get("last_name", "").strip(),
-                email=self.row.get("email", "").strip(),
-                matriculation_number=self.row.get("matriculation_number", "").strip()
-                or None,
+                email=email,
+                matriculation_number=matriculation_number,
                 group=group,
             )
-            student.full_clean()
-            return True, {"student": student}
+            new_student.full_clean()
+            return True, {"action": "created", "student": new_student}
 
         except ValidationError as e:
             # check for field-specific errors
@@ -92,7 +129,7 @@ class CSVRowValidator:
 def validate_and_parse_csv_file(
     csv_file,
 ) -> List[Student]:
-    valid_students = []
+    new_students_for_bulk_create = []
     errors = []
 
     try:
@@ -117,9 +154,8 @@ def validate_and_parse_csv_file(
                 errors.append(f"Row {row_number}: {error_details}")
                 continue
 
-            student = result["student"]
-
-            valid_students.append(student)
+            if result.get("action") == "created":
+                new_students_for_bulk_create.append(result["student"])
 
     except UnicodeDecodeError:
         raise ValueError("CSV file must be UTF-8 encoded")
@@ -129,7 +165,7 @@ def validate_and_parse_csv_file(
     if errors:
         raise ValueError("Validation errors:\n" + "\n".join(errors))
 
-    return valid_students
+    return new_students_for_bulk_create
 
 
 def bulk_import_students(valid_students: List[Student]) -> int:
