@@ -107,6 +107,11 @@ def validate_and_parse_csv_file(
 
         for row_number, row in enumerate(csv_reader, start=2):
             validator = CSVRowValidator(row, row_number)
+
+            # check if row consists of empty cells only
+            if all(cell == "" for cell in row.values()):
+                continue
+
             # contains either False and error details or True and student instance
             is_valid, result = validator.validate()
 
