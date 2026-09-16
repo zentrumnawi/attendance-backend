@@ -689,7 +689,7 @@ class ExerciseCompletionBulkCreateOrUpdateView(APIView):
         saved_completions = []
         with transaction.atomic():
             for item in data["records"]:
-                completion, _created = ExerciseCompletion.objects.update_or_create(
+                completion, created = ExerciseCompletion.objects.get_or_create(
                     student_id=item["student_id"],
                     exercise=exercise_for_day,
                     defaults={
@@ -699,6 +699,14 @@ class ExerciseCompletionBulkCreateOrUpdateView(APIView):
                         else None,
                     },
                 )
+                if not created:
+                    completion.completed = item["completed"]
+                    if item["completed"]:
+                        if completion.completion_date is None:
+                            completion.completion_date = timezone.now()
+                    else:
+                        completion.completion_date = None
+                    completion.save()
                 saved_completions.append(completion)
         return Response(
             ExerciseCompletionSerializer(saved_completions, many=True).data,
