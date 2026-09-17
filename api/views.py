@@ -708,9 +708,7 @@ class PaperSubmissionList(generics.ListCreateAPIView):
         if not lab_day:
             raise ValidationError({"lab_day": "This query parameter is required."})
         try:
-            return queryset.filter(
-                paper__lab_day=lab_day
-            )
+            return queryset.filter(paper__lab_day=lab_day)
         except Paper.DoesNotExist:
             raise Http404("Paper not found")
 
