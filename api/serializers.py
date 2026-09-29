@@ -131,6 +131,16 @@ class ExperimentCompletionBulkItemSerializer(serializers.Serializer):
     )
 
 
+class ExerciseCompletionBulkItemSerializer(serializers.Serializer):
+    student_id = serializers.UUIDField()
+    completed = serializers.BooleanField()
+
+
+class ExerciseCompletionBulkSerializer(serializers.Serializer):
+    lab_day = serializers.IntegerField(min_value=1)
+    records = ExerciseCompletionBulkItemSerializer(many=True, allow_empty=False)
+
+
 class ExperimentCompletionBulkSerializer(serializers.Serializer):
     records = ExperimentCompletionBulkItemSerializer(many=True, allow_empty=False)
     lab_day = serializers.IntegerField(min_value=1)

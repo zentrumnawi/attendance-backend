@@ -52,6 +52,7 @@ from .serializers import (
     UserSerializer,
     GroupCreateSerializer,
     StudentUpdateSerializer,
+    ExerciseCompletionBulkSerializer,
 )
 
 from .utils.csv_import import validate_and_parse_csv_file, bulk_import_students
@@ -689,6 +690,46 @@ class ExperimentCompletionBulkCreateOrUpdateView(APIView):
 
         return Response(
             ExperimentCompletionSerializer(saved_completions, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ExerciseCompletionBulkCreateOrUpdateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = ExerciseCompletionBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        exercise_for_day = Exercise.objects.get(lab_day=data["lab_day"])
+        if not exercise_for_day:
+            raise ValidationError({"lab_day": "This lab day does not exist."})
+
+        saved_completions = []
+        with transaction.atomic():
+            for item in data["records"]:
+                completion, created = ExerciseCompletion.objects.get_or_create(
+                    student_id=item["student_id"],
+                    exercise=exercise_for_day,
+                    defaults={
+                        "completed": item["completed"],
+                        "completion_date": timezone.now()
+                        if item["completed"]
+                        else None,
+                    },
+                )
+                if not created:
+                    completion.completed = item["completed"]
+                    if item["completed"]:
+                        if completion.completion_date is None:
+                            completion.completion_date = timezone.now()
+                    else:
+                        completion.completion_date = None
+                    completion.save()
+                saved_completions.append(completion)
+        return Response(
+            ExerciseCompletionSerializer(saved_completions, many=True).data,
             status=status.HTTP_201_CREATED,
         )
 

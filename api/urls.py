@@ -125,6 +125,11 @@ urlpatterns = [
         name="exercise-completion-upsert",
     ),
     path(
+        "exercise-completions/bulk/",
+        views.ExerciseCompletionBulkCreateOrUpdateView.as_view(),
+        name="exercise-completion-bulk",
+    ),
+    path(
         "exercise-completions/<uuid:student_pk>/<uuid:exercise_id>/",
         views.ExerciseCompletionDetail.as_view(),
         name="exercise-completion-detail",
